@@ -1,0 +1,1018 @@
+openapi: 3.0.3
+info:
+  title: NEW API SYSTEM
+  version: 1.0.0
+  description: REST API for supply chain traceability MVP.
+servers:
+  - url: http://localhost:5000
+    description: Local
+security:
+  - bearerAuth: []
+tags:
+  - name: Health
+  - name: Admin
+  - name: Producer
+  - name: Processor
+  - name: Distributor
+  - name: Warehouse
+  - name: Retailer
+  - name: Public
+paths:
+  /health:
+    get:
+      tags: [Health]
+      security: []
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+
+  /api/v1/admin/login:
+    post:
+      tags: [Admin]
+      security: []
+      summary: Admin login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: JWT token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+
+  /api/v1/admin/producers/pending:
+    get:
+      tags: [Admin]
+      summary: List unverified producers
+      responses:
+        '200':
+          description: Producer list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Producer'
+
+  /api/v1/admin/producers/{producerId}/verify:
+    patch:
+      tags: [Admin]
+      summary: Verify a producer
+      parameters:
+        - in: path
+          name: producerId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Updated producer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producer'
+
+  /api/v1/admin/products:
+    get:
+      tags: [Admin]
+      summary: List all processed products
+      responses:
+        '200':
+          description: Processed product list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProcessedProduct'
+
+  /api/v1/admin/producers:
+    get:
+      tags: [Admin]
+      summary: List all producers
+      responses:
+        '200':
+          description: Producer list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Producer'
+
+  /api/v1/producer/register:
+    post:
+      tags: [Producer]
+      security: []
+      summary: Register producer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProducerRegisterRequest'
+      responses:
+        '201':
+          description: Producer created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  isVerified: { type: boolean }
+
+  /api/v1/producer/login:
+    post:
+      tags: [Producer]
+      security: []
+      summary: Producer login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: JWT token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+
+  /api/v1/producer/me:
+    get:
+      tags: [Producer]
+      summary: Producer profile
+      responses:
+        '200':
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producer'
+
+  /api/v1/producer/products:
+    post:
+      tags: [Producer]
+      summary: Add raw product
+      description: Body shape depends on producerType in JWT.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/FarmerFields'
+                - $ref: '#/components/schemas/WoodFields'
+                - $ref: '#/components/schemas/DairyMeatFields'
+      responses:
+        '201':
+          description: Raw product created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rawProductId: { type: string }
+                  qrCodeUrl: { type: string }
+    get:
+      tags: [Producer]
+      summary: List own raw products
+      responses:
+        '200':
+          description: Raw products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RawProduct'
+
+  /api/v1/processor/register:
+    post:
+      tags: [Processor]
+      security: []
+      summary: Register processor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyRegisterRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+
+  /api/v1/processor/login:
+    post:
+      tags: [Processor]
+      security: []
+      summary: Processor login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: JWT token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+
+  /api/v1/processor/batches:
+    post:
+      tags: [Processor]
+      summary: Create open batch
+      responses:
+        '201':
+          description: Batch created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Batch'
+
+  /api/v1/processor/batches/{batchId}/scan:
+    post:
+      tags: [Processor]
+      summary: Scan raw product into batch
+      parameters:
+        - in: path
+          name: batchId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rawProductId]
+              properties:
+                rawProductId: { type: string }
+      responses:
+        '200':
+          description: Updated batch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Batch'
+
+  /api/v1/processor/batches/{batchId}:
+    get:
+      tags: [Processor]
+      summary: Get batch details
+      parameters:
+        - in: path
+          name: batchId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Batch and raw products
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  batch: { $ref: '#/components/schemas/Batch' }
+                  rawProducts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RawProduct'
+
+  /api/v1/processor/batches/{batchId}/close:
+    post:
+      tags: [Processor]
+      summary: Close open batch
+      parameters:
+        - in: path
+          name: batchId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Closed batch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Batch'
+
+  /api/v1/processor/products:
+    post:
+      tags: [Processor]
+      summary: Create processed product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProcessedProductRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  masterProductId: { type: string }
+                  qrCodeUrl: { type: string }
+    get:
+      tags: [Processor]
+      summary: List own processed products
+      responses:
+        '200':
+          description: Products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProcessedProduct'
+
+  /api/v1/distributor/register:
+    post:
+      tags: [Distributor]
+      security: []
+      summary: Register distributor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyRegisterRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+
+  /api/v1/distributor/login:
+    post:
+      tags: [Distributor]
+      security: []
+      summary: Distributor login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: JWT token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+
+  /api/v1/distributor/scan:
+    post:
+      tags: [Distributor]
+      summary: Scan master product and detect next leg
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [masterProductId]
+              properties:
+                masterProductId: { type: string }
+      responses:
+        '200':
+          description: Next leg
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  masterProductId: { type: string }
+                  nextLeg:
+                    type: string
+                    enum: [leg1, leg2, warehouse_pending]
+
+  /api/v1/distributor/dispatch/leg1:
+    post:
+      tags: [Distributor]
+      summary: Log leg1 dispatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DispatchRequest'
+      responses:
+        '200':
+          description: Updated processed product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessedProduct'
+
+  /api/v1/distributor/dispatch/leg1/{masterProductId}/received:
+    patch:
+      tags: [Distributor]
+      summary: Mark leg1 received
+      parameters:
+        - in: path
+          name: masterProductId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LegReceivedRequest'
+      responses:
+        '200':
+          description: Leg 1 details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributionLeg'
+
+  /api/v1/distributor/dispatch/leg2:
+    post:
+      tags: [Distributor]
+      summary: Log leg2 dispatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DispatchRequest'
+      responses:
+        '200':
+          description: Updated processed product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessedProduct'
+
+  /api/v1/distributor/dispatch/leg2/{masterProductId}/received:
+    patch:
+      tags: [Distributor]
+      summary: Mark leg2 received
+      parameters:
+        - in: path
+          name: masterProductId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LegReceivedRequest'
+      responses:
+        '200':
+          description: Leg 2 details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributionLeg'
+
+  /api/v1/distributor/history:
+    get:
+      tags: [Distributor]
+      summary: List distributor history
+      responses:
+        '200':
+          description: History items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DistributorHistory'
+
+  /api/v1/warehouse/register:
+    post:
+      tags: [Warehouse]
+      security: []
+      summary: Register warehouse
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WarehouseRegisterRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+
+  /api/v1/warehouse/login:
+    post:
+      tags: [Warehouse]
+      security: []
+      summary: Warehouse login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: JWT token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+
+  /api/v1/warehouse/receive:
+    post:
+      tags: [Warehouse]
+      summary: Receive product at warehouse
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WarehouseReceiveRequest'
+      responses:
+        '200':
+          description: Warehouse stop details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarehouseStop'
+
+  /api/v1/warehouse/dispatch/{masterProductId}:
+    patch:
+      tags: [Warehouse]
+      summary: Dispatch product from warehouse
+      parameters:
+        - in: path
+          name: masterProductId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dispatchedAt]
+              properties:
+                dispatchedAt:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Updated warehouse stop
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarehouseStop'
+
+  /api/v1/warehouse/history:
+    get:
+      tags: [Warehouse]
+      summary: List warehouse history
+      responses:
+        '200':
+          description: History items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WarehouseHistory'
+
+  /api/v1/retailer/register:
+    post:
+      tags: [Retailer]
+      security: []
+      summary: Register retailer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RetailerRegisterRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+
+  /api/v1/retailer/login:
+    post:
+      tags: [Retailer]
+      security: []
+      summary: Retailer login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: JWT token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+
+  /api/v1/retailer/receive:
+    post:
+      tags: [Retailer]
+      summary: Receive product at retailer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RetailerReceiveRequest'
+      responses:
+        '200':
+          description: Retailer stop
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetailerStop'
+
+  /api/v1/retailer/history:
+    get:
+      tags: [Retailer]
+      summary: List retailer history
+      responses:
+        '200':
+          description: History items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RetailerHistory'
+
+  /api/v1/public/product/{masterProductId}:
+    get:
+      tags: [Public]
+      security: []
+      summary: Public traceability by master product ID
+      parameters:
+        - in: path
+          name: masterProductId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Enriched traceability object
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /api/v1/public/product/raw/{rawProductId}:
+    get:
+      tags: [Public]
+      security: []
+      summary: Public raw product origin details
+      parameters:
+        - in: path
+          name: rawProductId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Raw product details
+          content:
+            application/json:
+              schema:
+                type: object
+                allOf:
+                  - $ref: '#/components/schemas/RawProduct'
+                  - type: object
+                    properties:
+                      producerName:
+                        type: string
+                        nullable: true
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    TokenResponse:
+      type: object
+      properties:
+        token: { type: string }
+      required: [token]
+    IdResponse:
+      type: object
+      properties:
+        id: { type: string }
+      required: [id]
+    ErrorResponse:
+      type: object
+      properties:
+        error: { type: string }
+      required: [error]
+    ProducerRegisterRequest:
+      type: object
+      required: [name, email, password, producerType]
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        password: { type: string }
+        producerType:
+          type: string
+          enum: [farmer, wood_collector, dairy_meat_producer]
+    CompanyRegisterRequest:
+      type: object
+      required: [name, email, password, companyName]
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        password: { type: string }
+        companyName: { type: string }
+    WarehouseRegisterRequest:
+      type: object
+      required: [name, email, password, warehouseName, location]
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        password: { type: string }
+        warehouseName: { type: string }
+        location: { type: string }
+    RetailerRegisterRequest:
+      type: object
+      required: [name, email, password, storeName, storeLocation]
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        password: { type: string }
+        storeName: { type: string }
+        storeLocation: { type: string }
+    LatLng:
+      type: object
+      properties:
+        lat: { type: number }
+        lng: { type: number }
+    FarmerFields:
+      type: object
+      properties:
+        cropName: { type: string }
+        quantity: { type: number }
+        quantityUnit: { type: string }
+        geoLocation: { $ref: '#/components/schemas/LatLng' }
+        farmSizeAcres: { type: number }
+        pesticideUsed: { type: boolean }
+        pesticideDetails: { type: string }
+        harvestDate: { type: string, format: date }
+        organicCertified: { type: boolean }
+    WoodFields:
+      type: object
+      properties:
+        woodType: { type: string }
+        quantity: { type: number }
+        quantityUnit: { type: string }
+        forestRegion: { type: string }
+        geoLocation: { $ref: '#/components/schemas/LatLng' }
+        harvestDate: { type: string, format: date }
+        sustainabilityCertified: { type: boolean }
+    DairyMeatFields:
+      type: object
+      properties:
+        productType: { type: string }
+        animalBreed: { type: string }
+        quantity: { type: number }
+        quantityUnit: { type: string }
+        farmLocation: { $ref: '#/components/schemas/LatLng' }
+        antibioticsUsed: { type: boolean }
+        feedType: { type: string }
+        collectionDate: { type: string, format: date }
+    Producer:
+      type: object
+      properties:
+        _id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        producerType: { type: string }
+        isVerified: { type: boolean }
+        verifiedAt: { type: string, format: date-time, nullable: true }
+        verifiedBy: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    RawProduct:
+      type: object
+      properties:
+        _id: { type: string }
+        rawProductId: { type: string }
+        producerId: { type: string }
+        producerType: { type: string }
+        farmFields: { $ref: '#/components/schemas/FarmerFields' }
+        woodFields: { $ref: '#/components/schemas/WoodFields' }
+        dairyMeatFields: { $ref: '#/components/schemas/DairyMeatFields' }
+        qrCodeUrl: { type: string }
+        status: { type: string, enum: [available, in_batch] }
+        createdAt: { type: string, format: date-time }
+    Batch:
+      type: object
+      properties:
+        _id: { type: string }
+        batchId: { type: string }
+        processorId: { type: string }
+        rawProductIds:
+          type: array
+          items: { type: string }
+        status: { type: string, enum: [open, closed] }
+        closedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+    InputBatch:
+      type: object
+      properties:
+        batchId: { type: string }
+        materialDescription: { type: string }
+    CreateProcessedProductRequest:
+      type: object
+      required: [productName, productCategory, totalQuantityProduced, quantityUnit, inputBatches]
+      properties:
+        productName: { type: string }
+        productCategory: { type: string }
+        totalQuantityProduced: { type: number }
+        quantityUnit: { type: string }
+        inputBatches:
+          type: array
+          items: { $ref: '#/components/schemas/InputBatch' }
+        manufacturingDate: { type: string, format: date }
+        expiryDate: { type: string, format: date }
+        otherIngredients:
+          type: array
+          items: { type: string }
+    DistributionLeg:
+      type: object
+      properties:
+        distributorId: { type: string, nullable: true }
+        dispatchedAt: { type: string, format: date-time, nullable: true }
+        receivedAt: { type: string, format: date-time, nullable: true }
+        vehicleId: { type: string, nullable: true }
+        startTemp: { type: number, nullable: true }
+        endTemp: { type: number, nullable: true }
+        startHumidity: { type: number, nullable: true }
+        endHumidity: { type: number, nullable: true }
+        notes: { type: string, nullable: true }
+    WarehouseStop:
+      type: object
+      properties:
+        warehouseId: { type: string, nullable: true }
+        receivedAt: { type: string, format: date-time, nullable: true }
+        quantityReceived: { type: number, nullable: true }
+        storageTemp: { type: number, nullable: true }
+        storageHumidity: { type: number, nullable: true }
+        dispatchedAt: { type: string, format: date-time, nullable: true }
+        notes: { type: string, nullable: true }
+    RetailerStop:
+      type: object
+      properties:
+        retailerId: { type: string, nullable: true }
+        receivedAt: { type: string, format: date-time, nullable: true }
+        shelfLocation: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+    ProcessedProduct:
+      type: object
+      properties:
+        _id: { type: string }
+        masterProductId: { type: string }
+        processorId: { type: string }
+        productName: { type: string }
+        productCategory: { type: string }
+        totalQuantityProduced: { type: number }
+        quantityUnit: { type: string }
+        inputBatches:
+          type: array
+          items: { $ref: '#/components/schemas/InputBatch' }
+        manufacturingDate: { type: string, format: date, nullable: true }
+        expiryDate: { type: string, format: date, nullable: true }
+        otherIngredients:
+          type: array
+          items: { type: string }
+        qrCodeUrl: { type: string }
+        distributionLeg1: { $ref: '#/components/schemas/DistributionLeg' }
+        warehouseStop: { $ref: '#/components/schemas/WarehouseStop' }
+        distributionLeg2: { $ref: '#/components/schemas/DistributionLeg' }
+        retailerStop: { $ref: '#/components/schemas/RetailerStop' }
+        createdAt: { type: string, format: date-time }
+    DispatchRequest:
+      type: object
+      required: [masterProductId]
+      properties:
+        masterProductId: { type: string }
+        dispatchedAt: { type: string, format: date-time }
+        vehicleId: { type: string }
+        startTemp: { type: number }
+        startHumidity: { type: number }
+        notes: { type: string }
+    LegReceivedRequest:
+      type: object
+      properties:
+        receivedAt: { type: string, format: date-time }
+        endTemp: { type: number }
+        endHumidity: { type: number }
+    WarehouseReceiveRequest:
+      type: object
+      required: [masterProductId]
+      properties:
+        masterProductId: { type: string }
+        receivedAt: { type: string, format: date-time }
+        quantityReceived: { type: number }
+        storageTemp: { type: number }
+        storageHumidity: { type: number }
+        notes: { type: string }
+    RetailerReceiveRequest:
+      type: object
+      required: [masterProductId]
+      properties:
+        masterProductId: { type: string }
+        receivedAt: { type: string, format: date-time }
+        shelfLocation: { type: string }
+        notes: { type: string }
+    DistributorHistory:
+      type: object
+      properties:
+        _id: { type: string }
+        distributorId: { type: string }
+        masterProductId: { type: string }
+        leg: { type: string, enum: [leg1, leg2] }
+        dispatchedAt: { type: string, format: date-time, nullable: true }
+        receivedAt: { type: string, format: date-time, nullable: true }
+        vehicleId: { type: string, nullable: true }
+        startTemp: { type: number, nullable: true }
+        endTemp: { type: number, nullable: true }
+        notes: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    WarehouseHistory:
+      type: object
+      properties:
+        _id: { type: string }
+        warehouseId: { type: string }
+        masterProductId: { type: string }
+        receivedAt: { type: string, format: date-time, nullable: true }
+        quantityReceived: { type: number, nullable: true }
+        storageTemp: { type: number, nullable: true }
+        storageHumidity: { type: number, nullable: true }
+        dispatchedAt: { type: string, format: date-time, nullable: true }
+        notes: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    RetailerHistory:
+      type: object
+      properties:
+        _id: { type: string }
+        retailerId: { type: string }
+        masterProductId: { type: string }
+        receivedAt: { type: string, format: date-time, nullable: true }
+        shelfLocation: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }

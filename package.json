@@ -1,0 +1,36 @@
+{
+    "name":  "backendnew",
+    "version":  "1.0.0",
+    "main":  "server.js",
+    "scripts":  {
+                    "clean":  "node -e \"require(\u0027fs\u0027).rmSync(\u0027dist\u0027,{recursive:true,force:true})\"",
+                    "build":  "npm run clean \u0026\u0026 node -e \"const fs=require(\u0027fs\u0027);const path=require(\u0027path\u0027);const copy=(s,d)=\u003e{if(!fs.existsSync(s))return;const st=fs.statSync(s);if(st.isDirectory()){fs.mkdirSync(d,{recursive:true});for(const e of fs.readdirSync(s)){copy(path.join(s,e),path.join(d,e));}}else{fs.mkdirSync(path.dirname(d),{recursive:true});fs.copyFileSync(s,d);}};copy(\u0027server.js\u0027,\u0027dist/server.js\u0027);copy(\u0027src\u0027,\u0027dist/src\u0027);copy(\u0027openapi.yaml\u0027,\u0027dist/openapi.yaml\u0027);copy(\u0027API_DOCUMENTATION.md\u0027,\u0027dist/API_DOCUMENTATION.md\u0027);\"",
+                    "test":  "echo No tests configured",
+                    "dev":  "nodemon server.js",
+                    "start":  "node server.js",
+                    "start:prod":  "node dist/server.js",
+                    "seed:users":  "node scripts/seed-users.js"
+                },
+    "keywords":  [
+
+                 ],
+    "author":  "",
+    "license":  "ISC",
+    "description":  "",
+    "dependencies":  {
+                         "@types/express":  "^5.0.6",
+                         "bcryptjs":  "^3.0.3",
+                         "cors":  "^2.8.6",
+                         "dotenv":  "^17.4.2",
+                         "express":  "^5.2.1",
+                         "express-validator":  "^7.3.2",
+                         "jsonwebtoken":  "^9.0.3",
+                         "mongodb":  "^6.21.0",
+                         "mongoose":  "^8.23.1",
+                         "nanoid":  "^3.3.7",
+                         "qrcode":  "^1.5.4"
+                     },
+    "devDependencies":  {
+                            "nodemon":  "^3.1.14"
+                        }
+}
