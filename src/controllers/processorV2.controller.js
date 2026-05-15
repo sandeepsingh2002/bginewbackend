@@ -190,7 +190,7 @@ exports.createBatch = async (req, res) => {
   await ProcessorInventory.findOneAndUpdate(
     { processorId: req.user.userId },
     {
-      $setOnInsert: { processorId: req.user.userId, batchIds: [] },
+      $setOnInsert: { processorId: req.user.userId },
       $addToSet: { batchIds: batch.batchId }
     },
     { upsert: true }
@@ -214,7 +214,7 @@ exports.addBatchToInventory = async (req, res) => {
   await ProcessorInventory.findOneAndUpdate(
     { processorId: req.user.userId },
     {
-      $setOnInsert: { processorId: req.user.userId, batchIds: [] },
+      $setOnInsert: { processorId: req.user.userId },
       $addToSet: { batchIds: batchId }
     },
     { upsert: true }
