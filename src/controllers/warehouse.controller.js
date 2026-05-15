@@ -77,6 +77,18 @@ exports.traceBatch = async (req, res, next) => {
   }
 };
 
+exports.traceBatchByTraceId = async (req, res, next) => {
+  try {
+    const batch = await warehouseService.getBatchDetailsByTraceId({
+      traceId: req.params.traceId
+    });
+    return res.json(batch);
+  } catch (err) {
+    if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
+    return next(err);
+  }
+};
+
 exports.myBatches = async (req, res, next) => {
   try {
     const batches = await warehouseService.getWarehouseBatches({

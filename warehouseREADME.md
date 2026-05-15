@@ -283,7 +283,44 @@ Success response (200):
 Possible errors:
 - `404` batch not found
 
-### 5. Get My Batches
+### 5. Trace Batch by traceId (Get Full History)
+
+```http
+GET /api/v1/warehouse/trace/:traceId
+```
+
+Auth: not required (public traceability)
+
+This API retrieves complete batch details using the `traceId` returned by debit API.
+
+Path parameters:
+- `traceId`: MongoDB ObjectId returned by debit API (e.g., `6825c9c3f2d9dbe9b7331111`)
+
+Success response (200):
+```json
+{
+  "_id": "6825c9c3f2d9dbe9b7331111",
+  "batchId": "WB-A1B2C3D4E5",
+  "masterProductId": "MP-1001",
+  "productName": "Milk Crate",
+  "quantity": 120,
+  "status": "debited",
+  "environmentalRecords": [
+    {
+      "timestamp": "2026-05-15T12:00:00.000Z",
+      "temperature": 4.5,
+      "humidity": 68
+    }
+  ],
+  "timeInWarehouseHours": 12
+}
+```
+
+Possible errors:
+- `400` invalid traceId
+- `404` batch not found
+
+### 6. Get My Batches
 
 ```http
 GET /api/v1/warehouse/my-batches
@@ -339,6 +376,7 @@ Validation is defined in [warehouse.validator.js](src/validators/warehouse.valid
 ### Path Parameters
 - `sessionId` must not be empty
 - `batchId` must not be empty
+- `traceId` must be a valid MongoDB ObjectId
 
 ## Typical Workflow
 
@@ -371,6 +409,7 @@ Anyone can trace batch history:
 1. Use trace API with `batchId`
 2. View complete environmental history
 3. See total time spent in warehouse
+4. Or use trace API with `traceId` directly from debit response
 
 ## Integration with Transport System
 

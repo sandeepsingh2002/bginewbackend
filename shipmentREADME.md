@@ -329,6 +329,47 @@ Success response:
 ]
 ```
 
+### 6. Get Shipment Prefill By Product ID (Public Helper API)
+
+```http
+GET /api/v1/public/shipment-prefill/:masterProductId
+```
+
+Auth: not required
+
+Purpose:
+
+- Used after QR scan to auto-fill shipment form fields.
+- Takes `masterProductId` and returns product + sender details.
+
+Success response:
+
+```json
+{
+  "masterProductId": "MP-1001",
+  "productName": "Milk Crate",
+  "productType": "dairy",
+  "quantity": 120,
+  "quantityUnit": "kg",
+  "senderType": "processor",
+  "senderId": "6825b7b2d8d7f44f1b5c1234",
+  "senderProfile": {
+    "name": "John Doe",
+    "companyName": "Fresh Foods Pvt Ltd",
+    "email": "processor@example.com"
+  }
+}
+```
+
+Possible errors:
+
+- `404` product not found
+
+Sender selection behavior:
+
+- Defaults to processor as sender.
+- If product was dispatched from warehouse, sender becomes warehouse.
+
 ## Validation Rules
 
 Validation is defined in [transportSession.validator.js](c:/javaFiles/bgihackathon/bginewbackend/src/validators/transportSession.validator.js:1)
@@ -362,6 +403,23 @@ This means a QR scan can show:
 - route points collected during shipment
 - transport completion time
 - cold-chain conditions like temperature and humidity
+- shipment prefill fields (`senderId`, `senderType`, `productName`, `quantity`)
+
+### ChainId-Based Traceability (V2)
+
+For v2 processor flow where QR contains `chainId`/`customQrText`, use:
+
+```http
+GET /api/v1/public/traceability/chain/:chainId
+```
+
+This returns a unified response with:
+
+- `product` (v2 processed product details)
+- `processing` (processor, batches, raw products, producers/farmers)
+- `shipment` (transport sessions + lifecycle events by `chainId`)
+- `warehouse` (warehouse batches + environmental records + warehouse profile)
+- `retailer` (currently null with a note if chain-linked retailer data is unavailable)
 
 ## Admin Visibility
 

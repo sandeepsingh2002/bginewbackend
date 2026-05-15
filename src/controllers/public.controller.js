@@ -12,6 +12,9 @@ const Retailer = require('../models/Retailer');
 const RetailerHistory = require('../models/RetailerHistory');
 const { TransportSession } = require('../models/TransportSession');
 const { TransportLifecycleEvent } = require('../models/TransportLifecycleEvent');
+const Chain = require('../models/Chain');
+const ProcessedProductV2 = require('../models/ProcessedProductV2');
+const { ProcessorBatch } = require('../models/ProcessorBatch');
 
 exports.getProduct = async (req, res) => {
   const product = await ProcessedProduct.findOne({ masterProductId: req.params.masterProductId }).lean();
@@ -148,6 +151,118 @@ exports.getTraceability = async (req, res) => {
       profile: retailer,
       details: product.retailerStop || null,
       history: retailerHistory || null
+    }
+  });
+};
+
+exports.getShipmentPrefill = async (req, res) => {
+  const { masterProductId } = req.params;
+  const product = await ProcessedProduct.findOne({ masterProductId }).lean();
+
+  if (!product) return res.status(404).json({ error: 'Product not found' });
+
+  const processor = await Processor.findById(product.processorId)
+    .select('name companyName email')
+    .lean();
+
+  const hasWarehouse = Boolean(product.warehouseStop?.warehouseId);
+  const warehouseDispatched = Boolean(product.warehouseStop?.dispatchedAt);
+
+  let senderType = 'processor';
+  let senderId = product.processorId;
+  let senderProfile = processor;
+
+  if (hasWarehouse && warehouseDispatched) {
+    senderType = 'warehouse';
+    senderId = product.warehouseStop.warehouseId;
+    senderProfile = await Warehouse.findById(product.warehouseStop.warehouseId)
+      .select('name warehouseName location email')
+      .lean();
+  }
+
+  return res.json({
+    masterProductId: product.masterProductId,
+    productName: product.productName,
+    productType: product.productCategory,
+    quantity: product.totalQuantityProduced,
+    quantityUnit: product.quantityUnit,
+    senderType,
+    senderId,
+    senderProfile
+  });
+};
+
+exports.getTraceabilityByChainId = async (req, res) => {
+  const { chainId } = req.params;
+
+  const chain = await Chain.findOne({ chainId }).lean();
+  if (!chain) return res.status(404).json({ error: 'Chain not found' });
+
+  const [productV2, processor, batches, transportSessions, warehouseBatches] = await Promise.all([
+    ProcessedProductV2.findById(chain.processedProductId).lean(),
+    Processor.findById(chain.processorId).select('name companyName email gstinNumber currentLocation').lean(),
+    ProcessorBatch.find({ processorId: chain.processorId, batchId: { $in: chain.batchIds } }).lean(),
+    TransportSession.find({ chainId }).sort({ createdAt: -1 }).lean(),
+    WarehouseBatch.find({ chainId }).sort({ scannedAt: -1 }).lean()
+  ]);
+
+  if (!productV2) return res.status(404).json({ error: 'Processed product not found for chain' });
+
+  const rawProductIds = [...new Set(batches.flatMap((batch) => batch.rawProductIds || []))];
+  const rawProducts = rawProductIds.length
+    ? await RawProduct.find({ rawProductId: { $in: rawProductIds } }).lean()
+    : [];
+
+  const producerIds = [...new Set(rawProducts.map((raw) => String(raw.producerId)).filter(Boolean))];
+  const producers = producerIds.length
+    ? await Producer.find({ _id: { $in: producerIds } }).select('name email producerType geoLocation').lean()
+    : [];
+
+  const transportSessionIds = transportSessions.map((session) => session.sessionId);
+  const transportLifecycle = transportSessionIds.length
+    ? await TransportLifecycleEvent.find({ sessionId: { $in: transportSessionIds } }).sort({ createdAt: 1 }).lean()
+    : [];
+
+  const warehouseIds = [...new Set(warehouseBatches.map((batch) => String(batch.warehouseId)).filter(Boolean))];
+  const warehouses = warehouseIds.length
+    ? await Warehouse.find({ _id: { $in: warehouseIds } }).select('name warehouseName location email').lean()
+    : [];
+
+  const warehouseById = new Map(warehouses.map((w) => [String(w._id), w]));
+
+  return res.json({
+    chainId,
+    customQrText: chain.customQrText,
+    product: {
+      customQrText: productV2.customQrText,
+      productName: productV2.productName,
+      manufacturingDate: productV2.manufacturingDate,
+      expiryDate: productV2.expiryDate,
+      quantityProduced: productV2.quantityProduced,
+      totalInputWeight: productV2.totalInputWeight
+    },
+    processing: {
+      processor,
+      batchCount: batches.length,
+      rawProductCount: rawProducts.length,
+      producerCount: producers.length,
+      batches,
+      rawProducts,
+      producers
+    },
+    shipment: {
+      sessions: transportSessions,
+      lifecycle: transportLifecycle
+    },
+    warehouse: {
+      batches: warehouseBatches.map((batch) => ({
+        ...batch,
+        warehouseProfile: warehouseById.get(String(batch.warehouseId)) || null
+      }))
+    },
+    retailer: {
+      note: 'Retailer linkage for v2 chainId is not yet persisted in a chainId-indexed model.',
+      data: null
     }
   });
 };

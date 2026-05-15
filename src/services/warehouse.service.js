@@ -101,6 +101,25 @@ exports.getBatchDetails = async ({ batchId }) => {
   };
 };
 
+exports.getBatchDetailsByTraceId = async ({ traceId }) => {
+  const batch = await WarehouseBatch.findById(traceId).lean();
+
+  if (!batch) {
+    const error = new Error('Batch not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const timeInWarehouse = batch.debitedAt
+    ? Math.floor((new Date(batch.debitedAt) - new Date(batch.scannedAt)) / 1000 / 60 / 60)
+    : null;
+
+  return {
+    ...batch,
+    timeInWarehouseHours: timeInWarehouse
+  };
+};
+
 exports.getWarehouseBatches = async ({ warehouseId }) => {
   const batches = await WarehouseBatch.find({ warehouseId })
     .sort({ scannedAt: -1 })

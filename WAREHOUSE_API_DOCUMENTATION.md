@@ -236,6 +236,40 @@ Success response `200`:
 Error responses:
 - `401` Unauthorized
 
+### 8. Trace Batch By Trace ID (Public)
+
+- Method: `GET`
+- URL: `/api/v1/warehouse/trace/:traceId`
+- Auth: Not required
+
+Path params:
+- `traceId` (MongoDB ObjectId string, required)
+
+Success response `200`:
+
+```json
+{
+  "_id": "6825c9c3f2d9dbe9b7331111",
+  "batchId": "WB-A1B2C3D4E5",
+  "masterProductId": "MP-1001",
+  "productName": "Milk Crate",
+  "quantity": 120,
+  "status": "debited",
+  "environmentalRecords": [
+    {
+      "timestamp": "2026-05-15T12:00:00.000Z",
+      "temperature": 4.5,
+      "humidity": 68
+    }
+  ],
+  "timeInWarehouseHours": 12
+}
+```
+
+Error responses:
+- `400` invalid traceId
+- `404` batch not found
+
 ## Validation Summary
 
 - `name`: required
@@ -247,6 +281,7 @@ Error responses:
 - `geoLocation.lng`: number between `-180` and `180`
 - `sessionId`: required path param
 - `batchId`: required path param
+- `traceId`: valid MongoDB ObjectId path param
 - `temperature`: numeric
 - `humidity`: number between `0` and `100`
 

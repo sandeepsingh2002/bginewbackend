@@ -23,6 +23,10 @@ const batchIdValidation = [
   param('batchId').trim().notEmpty().withMessage('batchId is required')
 ];
 
+const traceIdValidation = [
+  param('traceId').isMongoId().withMessage('valid traceId is required')
+];
+
 const environmentalUpdateValidation = [
   param('batchId').trim().notEmpty().withMessage('batchId is required'),
   body('temperature').isFloat().withMessage('temperature must be a number'),
@@ -34,5 +38,6 @@ module.exports = {
   loginValidation,
   sessionIdValidation,
   batchIdValidation,
+  traceIdValidation,
   environmentalUpdateValidation
 };
