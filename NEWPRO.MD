@@ -121,7 +121,17 @@ Auth: required
 Use case:
 - Re-add a removed (not consumed) batch.
 
-### 5. Remove Batch From Inventory
+### 5. List Batches Inside Inventory
+
+```http
+GET /api/v2/processor/inventory/batches
+```
+
+Auth: required
+
+Returns only batches that are currently present in inventory.
+
+### 6. Remove Batch From Inventory
 
 ```http
 DELETE /api/v2/processor/inventory/batches/:batchId
@@ -131,7 +141,7 @@ Auth: required
 
 Success (`200`) marks batch as `removed`.
 
-### 6. List Batches
+### 7. List All Processor Batches
 
 ```http
 GET /api/v2/processor/batches
@@ -141,7 +151,7 @@ Auth: required
 
 Returns all processor batches (inventory + consumed + removed).
 
-### 7. Create Batch
+### 8. Create Batch
 
 ```http
 POST /api/v2/processor/batches
@@ -168,12 +178,18 @@ Behavior:
 
 Success (`201`) returns created batch document.
 
+Common errors:
+- `400` when `batchName` or `productType` is missing
+- `400` when token processor id is malformed
+- `404` when processor does not exist
+- `409` on rare generated `batchId` conflict
+
 Allowed `productType` values come from raw producer enums:
 - Farmer crop names
 - Wood types
 - Dairy/meat product types
 
-### 8. Scan Raw Product Into Batch
+### 9. Scan Raw Product Into Batch
 
 ```http
 POST /api/v2/processor/batches/:batchId/scan
@@ -204,7 +220,7 @@ How it works:
 
 Success (`200`) includes updated weight summary.
 
-### 9. Create New End Product (Consumes Inventory Batches)
+### 10. Create New End Product (Consumes Inventory Batches)
 
 ```http
 POST /api/v2/processor/products
@@ -244,7 +260,11 @@ Success (`201`):
 }
 ```
 
-### 10. List Processor Products
+Request note:
+- `quantityProduced` and `productBatchQuantity` are both accepted.
+- Service uses `quantityProduced` first; if missing, it falls back to `productBatchQuantity`.
+
+### 11. List Processor Products
 
 ```http
 GET /api/v2/processor/products
@@ -254,7 +274,7 @@ Auth: required
 
 Returns processor-created end products.
 
-### 11. Get Chain Details By Custom QR Text
+### 12. Get Chain Details By Custom QR Text
 
 ```http
 GET /api/v2/processor/chain/:customQrText

@@ -9,6 +9,20 @@ const Chain = require('../models/Chain');
 const { signToken } = require('../utils/auth');
 const { generateCustomIdFromGeo } = require('../utils/customId');
 
+const sendError = (res, status, code, message, details) => {
+  const payload = { error: message, code };
+  if (details !== undefined) payload.details = details;
+  return res.status(status).json(payload);
+};
+
+const sendInternalError = (res, operation, err) => sendError(
+  res,
+  500,
+  'INTERNAL_SERVER_ERROR',
+  `Failed to ${operation}`,
+  err?.message
+);
+
 const isValidLocation = (location) => (
   location &&
   typeof location.lat === 'number' &&
@@ -32,18 +46,19 @@ const getRawProductQuantity = (rawProduct) => {
 };
 
 exports.register = async (req, res) => {
+  try {
   const { companyName, email, gstinNumber, password, currentLocation } = req.body;
 
   if (!companyName || !email || !gstinNumber || !password || !isValidLocation(currentLocation)) {
-    return res.status(400).json({ error: 'companyName, email, gstinNumber, password and valid currentLocation are required' });
+    return sendError(res, 400, 'VALIDATION_ERROR', 'companyName, email, gstinNumber, password and valid currentLocation are required');
   }
 
   const [emailExists, gstinExists] = await Promise.all([
     Processor.findOne({ email }).lean(),
     Processor.findOne({ gstinNumber }).lean()
   ]);
-  if (emailExists) return res.status(409).json({ error: 'Email already exists' });
-  if (gstinExists) return res.status(409).json({ error: 'GSTIN already exists' });
+  if (emailExists) return sendError(res, 409, 'EMAIL_ALREADY_EXISTS', 'Email already exists');
+  if (gstinExists) return sendError(res, 409, 'GSTIN_ALREADY_EXISTS', 'GSTIN already exists');
 
   const passwordHash = await bcrypt.hash(password, 10);
   const processor = await Processor.create({
@@ -58,18 +73,27 @@ exports.register = async (req, res) => {
 
   await ProcessorInventory.create({ processorId: processor._id, batchIds: [] });
   return res.status(201).json({ id: processor._id, companyName: processor.companyName, isVerified: processor.isVerified });
+  } catch (err) {
+    return sendInternalError(res, 'register processor', err);
+  }
 };
 
 exports.login = async (req, res) => {
+  try {
   const { email, password } = req.body;
+  if (!email || !password) return sendError(res, 400, 'VALIDATION_ERROR', 'email and password are required');
   const processor = await Processor.findOne({ email });
   if (!processor || !(await bcrypt.compare(password, processor.passwordHash))) {
-    return res.status(401).json({ error: 'Invalid credentials' });
+    return sendError(res, 401, 'INVALID_CREDENTIALS', 'Invalid credentials');
   }
   return res.json({ token: signToken({ userId: processor._id, role: 'processor', apiVersion: 'v2' }) });
+  } catch (err) {
+    return sendInternalError(res, 'login processor', err);
+  }
 };
 
 exports.getInventory = async (req, res) => {
+  try {
   const inventory = await ProcessorInventory.findOneAndUpdate(
     { processorId: req.user.userId },
     { $setOnInsert: { processorId: req.user.userId, batchIds: [] } },
@@ -88,9 +112,13 @@ exports.getInventory = async (req, res) => {
     batchIds: inventory.batchIds,
     batches
   });
+  } catch (err) {
+    return sendInternalError(res, 'fetch inventory', err);
+  }
 };
 
 exports.listInventoryBatches = async (req, res) => {
+  try {
   const inventory = await ProcessorInventory.findOneAndUpdate(
     { processorId: req.user.userId },
     { $setOnInsert: { processorId: req.user.userId, batchIds: [] } },
@@ -103,36 +131,64 @@ exports.listInventoryBatches = async (req, res) => {
   }).sort({ createdAt: -1 }).lean();
 
   return res.json(batches);
+  } catch (err) {
+    return sendInternalError(res, 'list inventory batches', err);
+  }
 };
 
 exports.listBatches = async (req, res) => {
+  try {
   const batches = await ProcessorBatch.find({ processorId: req.user.userId }).sort({ createdAt: -1 });
   return res.json(batches);
+  } catch (err) {
+    return sendInternalError(res, 'list batches', err);
+  }
 };
 
 exports.createBatch = async (req, res) => {
+  try {
   const { batchName, productType } = req.body;
   const normalizedProductType = String(productType || '').trim().toLowerCase();
 
   if (!batchName || !normalizedProductType) {
-    return res.status(400).json({ error: 'batchName and productType are required' });
+    return sendError(res, 400, 'VALIDATION_ERROR', 'batchName and productType are required');
   }
   if (!BATCH_PRODUCT_TYPES.includes(normalizedProductType)) {
-    return res.status(400).json({ error: `Invalid productType. Allowed values: ${BATCH_PRODUCT_TYPES.join(', ')}` });
+    return sendError(res, 400, 'INVALID_PRODUCT_TYPE', 'Invalid productType', BATCH_PRODUCT_TYPES);
+  }
+
+  if (!req.user?.userId) {
+    return sendError(res, 401, 'UNAUTHORIZED', 'Unauthorized');
+  }
+
+  if (!/^[0-9a-fA-F]{24}$/.test(String(req.user.userId))) {
+    return sendError(res, 400, 'INVALID_PROCESSOR_ID', 'Invalid processor id in token');
   }
 
   const processor = await Processor.findById(req.user.userId).select('currentLocation geoLocation').lean();
+  if (!processor) {
+    return sendError(res, 404, 'PROCESSOR_NOT_FOUND', 'Processor not found');
+  }
+
   const batchId = await generateCustomIdFromGeo(getProcessorLocation(processor), 'MP04');
 
-  const batch = await ProcessorBatch.create({
-    batchId,
-    processorId: req.user.userId,
-    batchName,
-    productType: normalizedProductType,
-    totalWeight: 0,
-    rawProductIds: [],
-    status: 'in_inventory'
-  });
+  let batch;
+  try {
+    batch = await ProcessorBatch.create({
+      batchId,
+      processorId: req.user.userId,
+      batchName,
+      productType: normalizedProductType,
+      totalWeight: 0,
+      rawProductIds: [],
+      status: 'in_inventory'
+    });
+  } catch (err) {
+    if (err?.code === 11000 && err?.keyPattern?.batchId) {
+      return sendError(res, 409, 'BATCH_ID_CONFLICT', 'Batch id generation conflict. Please retry.');
+    }
+    return sendInternalError(res, 'create batch', err);
+  }
 
   await ProcessorInventory.findOneAndUpdate(
     { processorId: req.user.userId },
@@ -144,14 +200,18 @@ exports.createBatch = async (req, res) => {
   );
 
   return res.status(201).json(batch);
+  } catch (err) {
+    return sendInternalError(res, 'create batch', err);
+  }
 };
 
 exports.addBatchToInventory = async (req, res) => {
+  try {
   const { batchId } = req.params;
   const batch = await ProcessorBatch.findOne({ batchId, processorId: req.user.userId });
-  if (!batch) return res.status(404).json({ error: 'Batch not found' });
+  if (!batch) return sendError(res, 404, 'BATCH_NOT_FOUND', 'Batch not found');
   if (batch.status === 'consumed') {
-    return res.status(409).json({ error: 'Consumed batch cannot be added back to inventory' });
+    return sendError(res, 409, 'BATCH_CONSUMED', 'Consumed batch cannot be added back to inventory');
   }
 
   await ProcessorInventory.findOneAndUpdate(
@@ -170,13 +230,17 @@ exports.addBatchToInventory = async (req, res) => {
   }
 
   return res.json({ message: 'Batch added to inventory', batch });
+  } catch (err) {
+    return sendInternalError(res, 'add batch to inventory', err);
+  }
 };
 
 exports.removeBatchFromInventory = async (req, res) => {
+  try {
   const { batchId } = req.params;
   const inventory = await ProcessorInventory.findOne({ processorId: req.user.userId });
   if (!inventory || !inventory.batchIds.includes(batchId)) {
-    return res.status(404).json({ error: 'Batch not found in inventory' });
+    return sendError(res, 404, 'BATCH_NOT_IN_INVENTORY', 'Batch not found in inventory');
   }
 
   await ProcessorInventory.updateOne(
@@ -189,43 +253,47 @@ exports.removeBatchFromInventory = async (req, res) => {
     { status: 'removed', removedAt: new Date() },
     { new: true }
   );
-  if (!batch) return res.status(404).json({ error: 'Active batch not found' });
+  if (!batch) return sendError(res, 404, 'ACTIVE_BATCH_NOT_FOUND', 'Active batch not found');
 
   return res.json({ message: 'Batch removed from inventory', batch });
+  } catch (err) {
+    return sendInternalError(res, 'remove batch from inventory', err);
+  }
 };
 
 exports.scanIntoBatch = async (req, res) => {
+  try {
   const { batchId } = req.params;
   const { productString } = req.body;
-  if (!productString) return res.status(400).json({ error: 'productString is required' });
+  if (!productString) return sendError(res, 400, 'VALIDATION_ERROR', 'productString is required');
 
   const batch = await ProcessorBatch.findOne({
     batchId,
     processorId: req.user.userId,
     status: 'in_inventory'
   });
-  if (!batch) return res.status(404).json({ error: 'Batch not found in inventory' });
+  if (!batch) return sendError(res, 404, 'BATCH_NOT_IN_INVENTORY', 'Batch not found in inventory');
 
   const inventory = await ProcessorInventory.findOne({ processorId: req.user.userId }).lean();
   if (!inventory || !inventory.batchIds.includes(batchId)) {
-    return res.status(409).json({ error: 'Batch is not currently part of inventory' });
+    return sendError(res, 409, 'BATCH_NOT_ACTIVE_IN_INVENTORY', 'Batch is not currently part of inventory');
   }
 
   if (batch.rawProductIds.includes(productString)) {
-    return res.status(409).json({ error: 'Raw product already scanned in this batch' });
+    return sendError(res, 409, 'RAW_ALREADY_SCANNED', 'Raw product already scanned in this batch');
   }
 
   const rawProduct = await RawProduct.findOne({ rawProductId: productString, status: 'available' });
-  if (!rawProduct) return res.status(404).json({ error: 'Raw product not found or unavailable' });
+  if (!rawProduct) return sendError(res, 404, 'RAW_PRODUCT_UNAVAILABLE', 'Raw product not found or unavailable');
 
   const rawType = String(getRawProductType(rawProduct) || '').toLowerCase();
   if (!rawType || rawType !== batch.productType) {
-    return res.status(409).json({ error: `Product type mismatch. Batch accepts ${batch.productType}` });
+    return sendError(res, 409, 'PRODUCT_TYPE_MISMATCH', `Product type mismatch. Batch accepts ${batch.productType}`);
   }
 
   const quantity = Number(getRawProductQuantity(rawProduct));
   if (!Number.isFinite(quantity) || quantity <= 0) {
-    return res.status(400).json({ error: 'Scanned raw product does not have a valid quantity' });
+    return sendError(res, 400, 'INVALID_RAW_QUANTITY', 'Scanned raw product does not have a valid quantity');
   }
 
   batch.rawProductIds.push(rawProduct.rawProductId);
@@ -242,9 +310,13 @@ exports.scanIntoBatch = async (req, res) => {
     addedWeight: quantity,
     totalWeight: batch.totalWeight
   });
+  } catch (err) {
+    return sendInternalError(res, 'scan raw product into batch', err);
+  }
 };
 
 exports.createNewProduct = async (req, res) => {
+  try {
   const {
     productName,
     manufacturingDate,
@@ -257,19 +329,19 @@ exports.createNewProduct = async (req, res) => {
 
   const outputQuantity = Number(quantityProduced ?? productBatchQuantity);
   if (!productName || !manufacturingDate || !expiryDate || !Array.isArray(batchIds) || batchIds.length === 0) {
-    return res.status(400).json({ error: 'productName, manufacturingDate, expiryDate and batchIds are required' });
+    return sendError(res, 400, 'VALIDATION_ERROR', 'productName, manufacturingDate, expiryDate and batchIds are required');
   }
   if (!Number.isFinite(outputQuantity) || outputQuantity <= 0) {
-    return res.status(400).json({ error: 'quantityProduced (or productBatchQuantity) must be a positive number' });
+    return sendError(res, 400, 'INVALID_OUTPUT_QUANTITY', 'quantityProduced (or productBatchQuantity) must be a positive number');
   }
 
   const uniqueBatchIds = [...new Set(batchIds)];
   const inventory = await ProcessorInventory.findOne({ processorId: req.user.userId });
-  if (!inventory) return res.status(404).json({ error: 'Inventory not found for processor' });
+  if (!inventory) return sendError(res, 404, 'INVENTORY_NOT_FOUND', 'Inventory not found for processor');
 
   const missingFromInventory = uniqueBatchIds.filter((id) => !inventory.batchIds.includes(id));
   if (missingFromInventory.length > 0) {
-    return res.status(400).json({ error: `These batches are not in inventory: ${missingFromInventory.join(', ')}` });
+    return sendError(res, 400, 'BATCHES_NOT_IN_INVENTORY', 'Some batches are not in inventory', missingFromInventory);
   }
 
   const batches = await ProcessorBatch.find({
@@ -278,7 +350,7 @@ exports.createNewProduct = async (req, res) => {
     status: 'in_inventory'
   });
   if (batches.length !== uniqueBatchIds.length) {
-    return res.status(400).json({ error: 'All selected batches must be in inventory and belong to the processor' });
+    return sendError(res, 400, 'INVALID_BATCH_SELECTION', 'All selected batches must be in inventory and belong to the processor');
   }
 
   const processor = await Processor.findById(req.user.userId).select('companyName email gstinNumber currentLocation geoLocation').lean();
@@ -322,25 +394,33 @@ exports.createNewProduct = async (req, res) => {
     productId: product._id,
     usedBatchIds: uniqueBatchIds
   });
+  } catch (err) {
+    return sendInternalError(res, 'create processed product', err);
+  }
 };
 
 exports.listProducts = async (req, res) => {
+  try {
   const products = await ProcessedProductV2.find({ processorId: req.user.userId }).sort({ createdAt: -1 });
   return res.json(products);
+  } catch (err) {
+    return sendInternalError(res, 'list processor products', err);
+  }
 };
 
 exports.getChainByQrText = async (req, res) => {
+  try {
   const customQrText = req.params.customQrText;
 
   const chain = await Chain.findOne({ customQrText }).lean();
-  if (!chain) return res.status(404).json({ error: 'Chain not found for this QR text' });
+  if (!chain) return sendError(res, 404, 'CHAIN_NOT_FOUND', 'Chain not found for this QR text');
 
   const [product, processor, batches] = await Promise.all([
     ProcessedProductV2.findById(chain.processedProductId).lean(),
     Processor.findById(chain.processorId).select('companyName email gstinNumber currentLocation').lean(),
     ProcessorBatch.find({ processorId: chain.processorId, batchId: { $in: chain.batchIds } }).lean()
   ]);
-  if (!product) return res.status(404).json({ error: 'Processed product not found' });
+  if (!product) return sendError(res, 404, 'PROCESSED_PRODUCT_NOT_FOUND', 'Processed product not found');
 
   const rawProductIds = [...new Set(batches.flatMap((batch) => batch.rawProductIds || []))];
   const rawProducts = rawProductIds.length
@@ -409,4 +489,7 @@ exports.getChainByQrText = async (req, res) => {
       producers: producerIds.map((id) => producerById.get(id)).filter(Boolean)
     }
   });
+  } catch (err) {
+    return sendInternalError(res, 'get chain by qr text', err);
+  }
 };
