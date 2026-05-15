@@ -733,6 +733,182 @@ paths:
                         type: string
                         nullable: true
 
+  /api/v1/public/traceability/{masterProductId}:
+    get:
+      tags: [Public]
+      security: []
+      summary: Full traceability details by master product ID
+      parameters:
+        - in: path
+          name: masterProductId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Aggregated traceability data across all entities
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/reports:
+    post:
+      tags: [Public]
+      security: []
+      summary: Create a consumer report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReportRequest'
+      responses:
+        '201':
+          description: Report created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reportId: { type: string }
+        '400':
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Master product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/reports/{reportId}:
+    get:
+      tags: [Public]
+      security: []
+      summary: Get report details by report ID
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Report details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '404':
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/reports/admin/all:
+    get:
+      tags: [Admin]
+      summary: Get all reports
+      responses:
+        '200':
+          description: List of reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Report'
+
+  /api/v1/reports/admin/{reportId}/phase:
+    patch:
+      tags: [Admin]
+      summary: Update report phase
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReportPhaseRequest'
+      responses:
+        '200':
+          description: Updated report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          description: Invalid phase
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/reports/admin/{reportId}/conclusion:
+    patch:
+      tags: [Admin]
+      summary: Add report conclusion
+      parameters:
+        - in: path
+          name: reportId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReportConclusionRequest'
+      responses:
+        '200':
+          description: Updated report with conclusion
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          description: conclusion is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Report must be in FIX phase before conclusion update
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1015,4 +1191,52 @@ components:
         receivedAt: { type: string, format: date-time, nullable: true }
         shelfLocation: { type: string, nullable: true }
         notes: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    CreateReportRequest:
+      type: object
+      required: [title, consumerName, description, masterProductId]
+      properties:
+        title: { type: string }
+        consumerName: { type: string }
+        reportType:
+          type: string
+          enum: [general_product_report]
+          default: general_product_report
+        description: { type: string }
+        imageUrls:
+          type: array
+          items: { type: string }
+        masterProductId: { type: string }
+    UpdateReportPhaseRequest:
+      type: object
+      required: [phase]
+      properties:
+        phase:
+          type: string
+          enum: [SEEN, ON_INVESTIGATION, FIX]
+    UpdateReportConclusionRequest:
+      type: object
+      required: [conclusion]
+      properties:
+        conclusion: { type: string }
+    Report:
+      type: object
+      properties:
+        _id: { type: string }
+        reportId: { type: string }
+        title: { type: string }
+        consumerName: { type: string }
+        reportType:
+          type: string
+          enum: [general_product_report]
+        description: { type: string }
+        imageUrls:
+          type: array
+          items: { type: string }
+        masterProductId: { type: string }
+        phase:
+          type: string
+          enum: [SEEN, ON_INVESTIGATION, FIX]
+        conclusion: { type: string, nullable: true }
+        phaseUpdatedAt: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
