@@ -53,3 +53,12 @@ exports.listOwnRawProducts = async (req, res) => {
   const items = await RawProduct.find({ producerId: req.user.userId }).sort({ createdAt: -1 });
   return res.json(items);
 };
+
+exports.getOwnRawProductById = async (req, res) => {
+  const item = await RawProduct.findOne({
+    rawProductId: req.params.rawProductId,
+    producerId: req.user.userId
+  });
+  if (!item) return res.status(404).json({ error: 'Raw product not found' });
+  return res.json(item);
+};

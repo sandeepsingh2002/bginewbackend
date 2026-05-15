@@ -114,6 +114,91 @@ paths:
                 items:
                   $ref: '#/components/schemas/Producer'
 
+  /api/v1/admin/accounts/pending:
+    get:
+      tags: [Admin]
+      summary: List all unverified accounts grouped by entity type
+      responses:
+        '200':
+          description: Unverified accounts grouped by type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingAccountsResponse'
+
+  /api/v1/admin/accounts/pending/{entityType}:
+    get:
+      tags: [Admin]
+      summary: List unverified accounts by entity type
+      parameters:
+        - in: path
+          name: entityType
+          required: true
+          schema:
+            type: string
+            enum: [producer, processor, distributor, warehouse, retailer]
+      responses:
+        '200':
+          description: Unverified accounts list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  oneOf:
+                    - $ref: '#/components/schemas/Producer'
+                    - $ref: '#/components/schemas/ProcessorAccount'
+                    - $ref: '#/components/schemas/DistributorAccount'
+                    - $ref: '#/components/schemas/WarehouseAccount'
+                    - $ref: '#/components/schemas/RetailerAccount'
+        '400':
+          description: Invalid entity type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/admin/accounts/{entityType}/{entityId}/verify:
+    patch:
+      tags: [Admin]
+      summary: Verify any entity account by type and id
+      parameters:
+        - in: path
+          name: entityType
+          required: true
+          schema:
+            type: string
+            enum: [producer, processor, distributor, warehouse, retailer]
+        - in: path
+          name: entityId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Updated verified account
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Producer'
+                  - $ref: '#/components/schemas/ProcessorAccount'
+                  - $ref: '#/components/schemas/DistributorAccount'
+                  - $ref: '#/components/schemas/WarehouseAccount'
+                  - $ref: '#/components/schemas/RetailerAccount'
+        '400':
+          description: Invalid entity type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Entity not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/v1/producer/register:
     post:
       tags: [Producer]
@@ -203,6 +288,30 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/RawProduct'
+
+  /api/v1/producer/products/{rawProductId}:
+    get:
+      tags: [Producer]
+      summary: Get own raw product details by rawProductId
+      parameters:
+        - in: path
+          name: rawProductId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Raw product details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawProduct'
+        '404':
+          description: Raw product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/processor/register:
     post:
@@ -437,6 +546,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProcessedProduct'
+        '409':
+          description: Leg 1 already assigned or product missing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/distributor/dispatch/leg1/{masterProductId}/received:
     patch:
@@ -461,6 +576,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DistributionLeg'
+        '404':
+          description: Leg 1 dispatch not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/distributor/dispatch/leg2:
     post:
@@ -479,6 +600,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProcessedProduct'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Warehouse dispatch required first or leg already assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/distributor/dispatch/leg2/{masterProductId}/received:
     patch:
@@ -503,6 +636,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DistributionLeg'
+        '404':
+          description: Leg 2 dispatch not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/distributor/history:
     get:
@@ -573,6 +712,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WarehouseStop'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Leg 1 not completed or warehouse stop already filled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/warehouse/dispatch/{masterProductId}:
     patch:
@@ -602,6 +753,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WarehouseStop'
+        '404':
+          description: Warehouse record not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/warehouse/history:
     get:
@@ -672,6 +829,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RetailerStop'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Leg 2 not completed or retailer stop already filled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/retailer/history:
     get:
@@ -706,6 +875,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/public/product/raw/{rawProductId}:
     get:
@@ -732,6 +907,12 @@ paths:
                       producerName:
                         type: string
                         nullable: true
+        '404':
+          description: Raw product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/public/traceability/{masterProductId}:
     get:
@@ -1022,6 +1203,70 @@ components:
         verifiedAt: { type: string, format: date-time, nullable: true }
         verifiedBy: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
+    ProcessorAccount:
+      type: object
+      properties:
+        _id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        companyName: { type: string }
+        isVerified: { type: boolean }
+        verifiedAt: { type: string, format: date-time, nullable: true }
+        verifiedBy: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    DistributorAccount:
+      type: object
+      properties:
+        _id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        companyName: { type: string }
+        isVerified: { type: boolean }
+        verifiedAt: { type: string, format: date-time, nullable: true }
+        verifiedBy: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    WarehouseAccount:
+      type: object
+      properties:
+        _id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        warehouseName: { type: string }
+        location: { type: string }
+        isVerified: { type: boolean }
+        verifiedAt: { type: string, format: date-time, nullable: true }
+        verifiedBy: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    RetailerAccount:
+      type: object
+      properties:
+        _id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        storeName: { type: string }
+        storeLocation: { type: string }
+        isVerified: { type: boolean }
+        verifiedAt: { type: string, format: date-time, nullable: true }
+        verifiedBy: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    PendingAccountsResponse:
+      type: object
+      properties:
+        producer:
+          type: array
+          items: { $ref: '#/components/schemas/Producer' }
+        processor:
+          type: array
+          items: { $ref: '#/components/schemas/ProcessorAccount' }
+        distributor:
+          type: array
+          items: { $ref: '#/components/schemas/DistributorAccount' }
+        warehouse:
+          type: array
+          items: { $ref: '#/components/schemas/WarehouseAccount' }
+        retailer:
+          type: array
+          items: { $ref: '#/components/schemas/RetailerAccount' }
     RawProduct:
       type: object
       properties:
