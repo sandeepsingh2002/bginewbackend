@@ -3,7 +3,7 @@ const Processor = require('../models/Processor');
 const Producer = require('../models/Producer');
 const RawProduct = require('../models/RawProduct');
 const ProcessorInventory = require('../models/ProcessorInventory');
-const { ProcessorBatch, BATCH_PRODUCT_TYPES } = require('../models/ProcessorBatch');
+const { ProcessorBatch } = require('../models/ProcessorBatch');
 const ProcessedProductV2 = require('../models/ProcessedProductV2');
 const Chain = require('../models/Chain');
 const { signToken } = require('../utils/auth');
@@ -152,9 +152,6 @@ exports.createBatch = async (req, res) => {
 
   if (!batchName || !normalizedProductType) {
     return sendError(res, 400, 'VALIDATION_ERROR', 'batchName and productType are required');
-  }
-  if (!BATCH_PRODUCT_TYPES.includes(normalizedProductType)) {
-    return sendError(res, 400, 'INVALID_PRODUCT_TYPE', 'Invalid productType', BATCH_PRODUCT_TYPES);
   }
 
   if (!req.user?.userId) {

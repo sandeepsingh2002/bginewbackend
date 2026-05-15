@@ -184,10 +184,9 @@ Common errors:
 - `404` when processor does not exist
 - `409` on rare generated `batchId` conflict
 
-Allowed `productType` values come from raw producer enums:
-- Farmer crop names
-- Wood types
-- Dairy/meat product types
+`productType` can be any non-empty string.
+Type compatibility is validated later during scan:
+- raw producer type value must match this batch `productType`.
 
 ### 9. Scan Raw Product Into Batch
 
