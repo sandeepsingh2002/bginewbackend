@@ -5,6 +5,10 @@ const producerSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   passwordHash: { type: String, required: true },
   producerType: { type: String, enum: ['farmer', 'wood_collector', 'dairy_meat_producer'], required: true },
+  geoLocation: {
+    lat: { type: Number },
+    lng: { type: Number }
+  },
   isVerified: { type: Boolean, default: false },
   verifiedAt: Date,
   verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' }

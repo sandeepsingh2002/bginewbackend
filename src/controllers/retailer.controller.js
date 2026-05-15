@@ -5,11 +5,14 @@ const RetailerHistory = require('../models/RetailerHistory');
 const { signToken } = require('../utils/auth');
 
 exports.register = async (req, res) => {
-  const { name, email, password, storeName, storeLocation } = req.body;
+  const { name, email, password, storeName, storeLocation, geoLocation } = req.body;
+  if (!geoLocation || typeof geoLocation.lat !== 'number' || typeof geoLocation.lng !== 'number') {
+    return res.status(400).json({ error: 'geoLocation with numeric lat and lng is required' });
+  }
   const exists = await Retailer.findOne({ email });
   if (exists) return res.status(409).json({ error: 'Email already exists' });
   const passwordHash = await bcrypt.hash(password, 10);
-  const user = await Retailer.create({ name, email, passwordHash, storeName, storeLocation });
+  const user = await Retailer.create({ name, email, passwordHash, storeName, storeLocation, geoLocation });
   return res.status(201).json({ id: user._id });
 };
 

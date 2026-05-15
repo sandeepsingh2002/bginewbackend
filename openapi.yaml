@@ -199,6 +199,71 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /api/v1/admin/dashboard/users:
+    get:
+      tags: [Admin]
+      summary: List all users for admin dashboard sorted by region code
+      parameters:
+        - in: query
+          name: entityType
+          required: false
+          schema:
+            type: string
+            enum: [producer, processor, distributor, warehouse, retailer]
+      responses:
+        '200':
+          description: Dashboard user list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+        '400':
+          description: Invalid entity type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/admin/dashboard/entities/{entityType}/{entityId}:
+    get:
+      tags: [Admin]
+      summary: Get complete dashboard details for one entity
+      parameters:
+        - in: path
+          name: entityType
+          required: true
+          schema:
+            type: string
+            enum: [producer, processor, distributor, warehouse, retailer]
+        - in: path
+          name: entityId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Entity detail object for admin dashboard
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid entity type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Entity not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/v1/producer/register:
     post:
       tags: [Producer]
@@ -1128,6 +1193,9 @@ components:
         producerType:
           type: string
           enum: [farmer, wood_collector, dairy_meat_producer]
+        geoLocation:
+          $ref: '#/components/schemas/LatLng'
+      description: geoLocation (lat/lng) is required when producerType is farmer.
     CompanyRegisterRequest:
       type: object
       required: [name, email, password, companyName]
@@ -1136,6 +1204,8 @@ components:
         email: { type: string, format: email }
         password: { type: string }
         companyName: { type: string }
+        geoLocation: { $ref: '#/components/schemas/LatLng' }
+      description: geoLocation (lat/lng) is required.
     WarehouseRegisterRequest:
       type: object
       required: [name, email, password, warehouseName, location]
@@ -1145,6 +1215,8 @@ components:
         password: { type: string }
         warehouseName: { type: string }
         location: { type: string }
+        geoLocation: { $ref: '#/components/schemas/LatLng' }
+      description: geoLocation (lat/lng) is required.
     RetailerRegisterRequest:
       type: object
       required: [name, email, password, storeName, storeLocation]
@@ -1154,6 +1226,8 @@ components:
         password: { type: string }
         storeName: { type: string }
         storeLocation: { type: string }
+        geoLocation: { $ref: '#/components/schemas/LatLng' }
+      description: geoLocation (lat/lng) is required.
     LatLng:
       type: object
       properties:
@@ -1199,6 +1273,7 @@ components:
         name: { type: string }
         email: { type: string }
         producerType: { type: string }
+        geoLocation: { $ref: '#/components/schemas/LatLng' }
         isVerified: { type: boolean }
         verifiedAt: { type: string, format: date-time, nullable: true }
         verifiedBy: { type: string, nullable: true }
@@ -1210,6 +1285,7 @@ components:
         name: { type: string }
         email: { type: string }
         companyName: { type: string }
+        geoLocation: { $ref: '#/components/schemas/LatLng' }
         isVerified: { type: boolean }
         verifiedAt: { type: string, format: date-time, nullable: true }
         verifiedBy: { type: string, nullable: true }
@@ -1221,6 +1297,7 @@ components:
         name: { type: string }
         email: { type: string }
         companyName: { type: string }
+        geoLocation: { $ref: '#/components/schemas/LatLng' }
         isVerified: { type: boolean }
         verifiedAt: { type: string, format: date-time, nullable: true }
         verifiedBy: { type: string, nullable: true }
@@ -1233,6 +1310,7 @@ components:
         email: { type: string }
         warehouseName: { type: string }
         location: { type: string }
+        geoLocation: { $ref: '#/components/schemas/LatLng' }
         isVerified: { type: boolean }
         verifiedAt: { type: string, format: date-time, nullable: true }
         verifiedBy: { type: string, nullable: true }
@@ -1245,6 +1323,7 @@ components:
         email: { type: string }
         storeName: { type: string }
         storeLocation: { type: string }
+        geoLocation: { $ref: '#/components/schemas/LatLng' }
         isVerified: { type: boolean }
         verifiedAt: { type: string, format: date-time, nullable: true }
         verifiedBy: { type: string, nullable: true }

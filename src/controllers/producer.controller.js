@@ -2,15 +2,21 @@
 const Producer = require('../models/Producer');
 const RawProduct = require('../models/RawProduct');
 const { signToken } = require('../utils/auth');
-const { generateRawId } = require('../utils/generateId');
+const { generateCustomIdFromGeo } = require('../utils/customId');
 
 exports.register = async (req, res) => {
-  const { name, email, password, producerType } = req.body;
+  const { name, email, password, producerType, geoLocation } = req.body;
   if (!name || !email || !password || !producerType) return res.status(400).json({ error: 'Missing fields' });
+  if (
+    producerType === 'farmer' &&
+    (!geoLocation || typeof geoLocation.lat !== 'number' || typeof geoLocation.lng !== 'number')
+  ) {
+    return res.status(400).json({ error: 'geoLocation with numeric lat and lng is required for farmer registration' });
+  }
   const exists = await Producer.findOne({ email });
   if (exists) return res.status(409).json({ error: 'Email already exists' });
   const passwordHash = await bcrypt.hash(password, 10);
-  const producer = await Producer.create({ name, email, passwordHash, producerType });
+  const producer = await Producer.create({ name, email, passwordHash, producerType, geoLocation });
   return res.status(201).json({ id: producer._id, isVerified: producer.isVerified });
 };
 
@@ -31,7 +37,9 @@ exports.me = async (req, res) => {
 
 exports.addRawProduct = async (req, res) => {
   const { producerType, userId } = req.user;
-  const rawProductId = generateRawId();
+  const producer = await Producer.findById(userId).select('geoLocation').lean();
+  const requestGeo = req.body?.geoLocation || req.body?.farmLocation;
+  const rawProductId = await generateCustomIdFromGeo(requestGeo || producer?.geoLocation, 'MP00');
 
   const payload = {
     rawProductId,

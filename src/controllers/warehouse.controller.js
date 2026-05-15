@@ -5,11 +5,14 @@ const WarehouseHistory = require('../models/WarehouseHistory');
 const { signToken } = require('../utils/auth');
 
 exports.register = async (req, res) => {
-  const { name, email, password, warehouseName, location } = req.body;
+  const { name, email, password, warehouseName, location, geoLocation } = req.body;
+  if (!geoLocation || typeof geoLocation.lat !== 'number' || typeof geoLocation.lng !== 'number') {
+    return res.status(400).json({ error: 'geoLocation with numeric lat and lng is required' });
+  }
   const exists = await Warehouse.findOne({ email });
   if (exists) return res.status(409).json({ error: 'Email already exists' });
   const passwordHash = await bcrypt.hash(password, 10);
-  const user = await Warehouse.create({ name, email, passwordHash, warehouseName, location });
+  const user = await Warehouse.create({ name, email, passwordHash, warehouseName, location, geoLocation });
   return res.status(201).json({ id: user._id });
 };
 

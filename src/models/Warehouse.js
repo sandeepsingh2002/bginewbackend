@@ -6,6 +6,10 @@ const warehouseSchema = new mongoose.Schema({
   passwordHash: { type: String, required: true },
   warehouseName: { type: String, required: true },
   location: { type: String, required: true },
+  geoLocation: {
+    lat: { type: Number },
+    lng: { type: Number }
+  },
   isVerified: { type: Boolean, default: false },
   verifiedAt: Date,
   verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' }

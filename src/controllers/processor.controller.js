@@ -5,14 +5,17 @@ const RawProduct = require('../models/RawProduct');
 const ProcessedProduct = require('../models/ProcessedProduct');
 const ProcessorHistory = require('../models/ProcessorHistory');
 const { signToken } = require('../utils/auth');
-const { generateBatchId, generateMasterId } = require('../utils/generateId');
+const { generateCustomIdFromGeo } = require('../utils/customId');
 
 exports.register = async (req, res) => {
-  const { name, email, password, companyName } = req.body;
+  const { name, email, password, companyName, geoLocation } = req.body;
+  if (!geoLocation || typeof geoLocation.lat !== 'number' || typeof geoLocation.lng !== 'number') {
+    return res.status(400).json({ error: 'geoLocation with numeric lat and lng is required' });
+  }
   const exists = await Processor.findOne({ email });
   if (exists) return res.status(409).json({ error: 'Email already exists' });
   const passwordHash = await bcrypt.hash(password, 10);
-  const user = await Processor.create({ name, email, passwordHash, companyName });
+  const user = await Processor.create({ name, email, passwordHash, companyName, geoLocation });
   return res.status(201).json({ id: user._id });
 };
 
@@ -24,7 +27,9 @@ exports.login = async (req, res) => {
 };
 
 exports.createBatch = async (req, res) => {
-  const batch = await Batch.create({ batchId: generateBatchId(), processorId: req.user.userId, rawProductIds: [] });
+  const processor = await Processor.findById(req.user.userId).select('geoLocation').lean();
+  const batchId = await generateCustomIdFromGeo(processor?.geoLocation, 'MP00');
+  const batch = await Batch.create({ batchId, processorId: req.user.userId, rawProductIds: [] });
   return res.status(201).json(batch);
 };
 
@@ -73,7 +78,8 @@ exports.createProcessedProduct = async (req, res) => {
   const batches = await Batch.find({ batchId: { $in: batchIds }, processorId: req.user.userId, status: 'closed' });
   if (batches.length !== batchIds.length) return res.status(400).json({ error: 'All input batches must be closed and belong to processor' });
 
-  const masterProductId = generateMasterId();
+  const processor = await Processor.findById(req.user.userId).select('geoLocation').lean();
+  const masterProductId = await generateCustomIdFromGeo(processor?.geoLocation, 'MP00');
   const product = await ProcessedProduct.create({
     masterProductId,
     processorId: req.user.userId,

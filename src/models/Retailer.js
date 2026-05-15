@@ -6,6 +6,10 @@ const retailerSchema = new mongoose.Schema({
   passwordHash: { type: String, required: true },
   storeName: { type: String, required: true },
   storeLocation: { type: String, required: true },
+  geoLocation: {
+    lat: { type: Number },
+    lng: { type: Number }
+  },
   isVerified: { type: Boolean, default: false },
   verifiedAt: Date,
   verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' }

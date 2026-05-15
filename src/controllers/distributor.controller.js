@@ -5,11 +5,14 @@ const DistributorHistory = require('../models/DistributorHistory');
 const { signToken } = require('../utils/auth');
 
 exports.register = async (req, res) => {
-  const { name, email, password, companyName } = req.body;
+  const { name, email, password, companyName, geoLocation } = req.body;
+  if (!geoLocation || typeof geoLocation.lat !== 'number' || typeof geoLocation.lng !== 'number') {
+    return res.status(400).json({ error: 'geoLocation with numeric lat and lng is required' });
+  }
   const exists = await Distributor.findOne({ email });
   if (exists) return res.status(409).json({ error: 'Email already exists' });
   const passwordHash = await bcrypt.hash(password, 10);
-  const user = await Distributor.create({ name, email, passwordHash, companyName });
+  const user = await Distributor.create({ name, email, passwordHash, companyName, geoLocation });
   return res.status(201).json({ id: user._id });
 };
 

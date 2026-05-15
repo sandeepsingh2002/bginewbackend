@@ -9,6 +9,8 @@ router.patch('/producers/:producerId/verify', authenticate('admin'), c.verifyPro
 router.get('/accounts/pending', authenticate('admin'), c.pendingAllEntities);
 router.get('/accounts/pending/:entityType', authenticate('admin'), c.pendingByEntity);
 router.patch('/accounts/:entityType/:entityId/verify', authenticate('admin'), c.verifyEntity);
+router.get('/dashboard/users', authenticate('admin'), c.dashboardUsers);
+router.get('/dashboard/entities/:entityType/:entityId', authenticate('admin'), c.dashboardEntityDetails);
 router.get('/products', authenticate('admin'), c.listProducts);
 router.get('/producers', authenticate('admin'), c.listProducers);
 
