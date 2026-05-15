@@ -8,6 +8,7 @@ router.post('/register', c.register);
 router.post('/login', c.login);
 
 router.get('/inventory', authenticate('processor'), c.getInventory);
+router.get('/inventory/batches', authenticate('processor'), c.listInventoryBatches);
 router.post('/inventory/batches/:batchId', authenticate('processor'), c.addBatchToInventory);
 router.delete('/inventory/batches/:batchId', authenticate('processor'), c.removeBatchFromInventory);
 

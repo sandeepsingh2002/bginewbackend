@@ -90,6 +90,21 @@ exports.getInventory = async (req, res) => {
   });
 };
 
+exports.listInventoryBatches = async (req, res) => {
+  const inventory = await ProcessorInventory.findOneAndUpdate(
+    { processorId: req.user.userId },
+    { $setOnInsert: { processorId: req.user.userId, batchIds: [] } },
+    { new: true, upsert: true }
+  ).lean();
+
+  const batches = await ProcessorBatch.find({
+    processorId: req.user.userId,
+    batchId: { $in: inventory.batchIds }
+  }).sort({ createdAt: -1 }).lean();
+
+  return res.json(batches);
+};
+
 exports.listBatches = async (req, res) => {
   const batches = await ProcessorBatch.find({ processorId: req.user.userId }).sort({ createdAt: -1 });
   return res.json(batches);
