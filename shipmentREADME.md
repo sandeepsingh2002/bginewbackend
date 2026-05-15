@@ -32,6 +32,7 @@ Fields:
 - `productName`: product name
 - `productType`: `short_shelf_life | medium_shelf_life | long_shelf_life | frozen | fragile`
 - `quantity`: shipped quantity
+- `chainId`: blockchain chain identifier string
 - `pickupLocation`: `{ lat, lng }`
 - `dropLocation`: `{ lat, lng }`
 - `startedAt`: shipment start time
@@ -159,6 +160,7 @@ Request body:
   "productName": "Milk Crate",
   "productType": "short_shelf_life",
   "quantity": 120,
+  "chainId": "0x1a2b3c4d5e6f",
   "pickupLocation": { "lat": 22.721, "lng": 75.861 },
   "dropLocation": { "lat": 22.744, "lng": 75.893 }
 }
@@ -337,6 +339,7 @@ Important rules:
 - `senderType` must be one of `producer`, `processor`, `warehouse`
 - `productType` must match allowed enum values
 - `quantity` must be greater than `0`
+- `chainId` must be a non-empty string
 - `pickupLocation.lat` must be between `-90` and `90`
 - `pickupLocation.lng` must be between `-180` and `180`
 - `dropLocation.lat` must be between `-90` and `90`

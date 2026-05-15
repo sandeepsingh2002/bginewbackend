@@ -8,6 +8,7 @@ const ProcessedProductV2 = require('../models/ProcessedProductV2');
 const Chain = require('../models/Chain');
 const { signToken } = require('../utils/auth');
 const { generateCustomIdFromGeo } = require('../utils/customId');
+const { nanoid } = require('nanoid');
 
 const sendError = (res, status, code, message, details) => {
   const payload = { error: message, code };
@@ -162,12 +163,12 @@ exports.createBatch = async (req, res) => {
     return sendError(res, 400, 'INVALID_PROCESSOR_ID', 'Invalid processor id in token');
   }
 
-  const processor = await Processor.findById(req.user.userId).select('currentLocation geoLocation').lean();
+  const processor = await Processor.findById(req.user.userId).select('_id').lean();
   if (!processor) {
     return sendError(res, 404, 'PROCESSOR_NOT_FOUND', 'Processor not found');
   }
 
-  const batchId = await generateCustomIdFromGeo(getProcessorLocation(processor), 'MP04');
+  const batchId = `BATCH_${nanoid(10).toUpperCase()}`;
 
   let batch;
   try {

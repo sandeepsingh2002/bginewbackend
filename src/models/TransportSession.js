@@ -28,6 +28,7 @@ const transportSessionSchema = new mongoose.Schema({
   productName: { type: String, required: true },
   productType: { type: String, enum: PRODUCT_TYPES, required: true },
   quantity: { type: Number, required: true },
+  chainId: { type: String, required: true },
   pickupLocation: { type: coordinateSchema, required: true },
   dropLocation: { type: coordinateSchema, required: true },
   startedAt: { type: Date, default: Date.now, required: true },

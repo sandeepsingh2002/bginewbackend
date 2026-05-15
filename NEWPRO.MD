@@ -169,7 +169,7 @@ Request body:
 ```
 
 Behavior:
-- Generates `batchId` using processor location (MP04 fallback).
+- Generates `batchId` in `BATCH_XXXXXXXXXX` style (example: `BATCH_A1B2C3D4E5`).
 - Initializes:
   - `totalWeight = 0`
   - `rawProductIds = []`

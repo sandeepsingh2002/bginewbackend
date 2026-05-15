@@ -1,12 +1,23 @@
-﻿const { Router } = require('express');
-const c = require('../controllers/warehouse.controller');
+const express = require('express');
+const router = express.Router();
+const warehouseController = require('../controllers/warehouse.controller');
 const authenticate = require('../middleware/authenticate');
+const { validate } = require('../middleware/validate');
+const {
+  registerValidation,
+  loginValidation,
+  sessionIdValidation,
+  batchIdValidation,
+  environmentalUpdateValidation
+} = require('../validators/warehouse.validator');
 
-const router = Router();
-router.post('/register', c.register);
-router.post('/login', c.login);
-router.post('/receive', authenticate('warehouse'), c.receive);
-router.patch('/dispatch/:masterProductId', authenticate('warehouse'), c.dispatch);
-router.get('/history', authenticate('warehouse'), c.history);
+router.post('/register', validate(registerValidation), warehouseController.register);
+router.post('/login', validate(loginValidation), warehouseController.login);
+
+router.post('/scan/:sessionId', authenticate('warehouse'), validate(sessionIdValidation), warehouseController.scanBatch);
+router.post('/environment/:batchId', authenticate('warehouse'), validate(environmentalUpdateValidation), warehouseController.updateEnvironment);
+router.post('/debit/:batchId', authenticate('warehouse'), validate(batchIdValidation), warehouseController.debitBatch);
+router.get('/batch/:batchId', validate(batchIdValidation), warehouseController.traceBatch);
+router.get('/my-batches', authenticate('warehouse'), warehouseController.myBatches);
 
 module.exports = router;

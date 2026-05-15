@@ -8,6 +8,7 @@ const startSessionValidation = [
   body('productName').trim().notEmpty().withMessage('productName is required'),
   body('productType').isIn(PRODUCT_TYPES).withMessage(`productType must be one of: ${PRODUCT_TYPES.join(', ')}`),
   body('quantity').isFloat({ gt: 0 }).withMessage('quantity must be greater than 0'),
+  body('chainId').trim().notEmpty().withMessage('chainId is required'),
   body('pickupLocation.lat').isFloat({ min: -90, max: 90 }).withMessage('pickupLocation.lat must be between -90 and 90'),
   body('pickupLocation.lng').isFloat({ min: -180, max: 180 }).withMessage('pickupLocation.lng must be between -180 and 180'),
   body('dropLocation.lat').isFloat({ min: -90, max: 90 }).withMessage('dropLocation.lat must be between -90 and 90'),

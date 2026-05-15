@@ -1,8 +1,7 @@
-﻿const bcrypt = require('bcryptjs');
+const bcrypt = require('bcryptjs');
 const Warehouse = require('../models/Warehouse');
-const ProcessedProduct = require('../models/ProcessedProduct');
-const WarehouseHistory = require('../models/WarehouseHistory');
 const { signToken } = require('../utils/auth');
+const warehouseService = require('../services/warehouse.service');
 
 exports.register = async (req, res) => {
   const { name, email, password, warehouseName, location, geoLocation } = req.body;
@@ -19,42 +18,72 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   const { email, password } = req.body;
   const user = await Warehouse.findOne({ email });
-  if (!user || !(await bcrypt.compare(password, user.passwordHash))) return res.status(401).json({ error: 'Invalid credentials' });
+  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
   return res.json({ token: signToken({ userId: user._id, role: 'warehouse' }) });
 };
 
-exports.receive = async (req, res) => {
-  const { masterProductId, ...rest } = req.body;
-  const product = await ProcessedProduct.findOne({ masterProductId });
-  if (!product) return res.status(404).json({ error: 'Product not found' });
-  if (!product.distributionLeg1?.receivedAt) return res.status(409).json({ error: 'Leg 1 must be completed first' });
-  if (product.warehouseStop?.warehouseId) return res.status(409).json({ error: 'Warehouse stop already filled' });
-
-  product.warehouseStop = { warehouseId: req.user.userId, ...rest };
-  await product.save();
-  await WarehouseHistory.create({ warehouseId: req.user.userId, masterProductId, ...rest });
-
-  return res.json(product.warehouseStop);
+exports.scanBatch = async (req, res, next) => {
+  try {
+    const batch = await warehouseService.scanBatch({
+      warehouseId: req.user.userId,
+      sessionId: req.params.sessionId
+    });
+    return res.status(201).json(batch);
+  } catch (err) {
+    if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
+    return next(err);
+  }
 };
 
-exports.dispatch = async (req, res) => {
-  const { dispatchedAt } = req.body;
-  const updated = await ProcessedProduct.findOneAndUpdate(
-    { masterProductId: req.params.masterProductId, 'warehouseStop.warehouseId': req.user.userId },
-    { $set: { 'warehouseStop.dispatchedAt': dispatchedAt } },
-    { new: true }
-  );
-  if (!updated) return res.status(404).json({ error: 'Warehouse record not found' });
-
-  await WarehouseHistory.findOneAndUpdate(
-    { warehouseId: req.user.userId, masterProductId: req.params.masterProductId },
-    { $set: { dispatchedAt } }
-  );
-
-  return res.json(updated.warehouseStop);
+exports.updateEnvironment = async (req, res, next) => {
+  try {
+    const batch = await warehouseService.addEnvironmentalRecord({
+      warehouseId: req.user.userId,
+      batchId: req.params.batchId,
+      temperature: req.body.temperature,
+      humidity: req.body.humidity
+    });
+    return res.json({ batchId: batch.batchId, status: batch.status, recordAdded: true });
+  } catch (err) {
+    if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
+    return next(err);
+  }
 };
 
-exports.history = async (req, res) => {
-  const items = await WarehouseHistory.find({ warehouseId: req.user.userId }).sort({ createdAt: -1 });
-  return res.json(items);
+exports.debitBatch = async (req, res, next) => {
+  try {
+    const batch = await warehouseService.debitBatch({
+      warehouseId: req.user.userId,
+      batchId: req.params.batchId
+    });
+    return res.json({ batchId: batch.batchId, traceId: batch._id });
+  } catch (err) {
+    if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
+    return next(err);
+  }
+};
+
+exports.traceBatch = async (req, res, next) => {
+  try {
+    const batch = await warehouseService.getBatchDetails({
+      batchId: req.params.batchId
+    });
+    return res.json(batch);
+  } catch (err) {
+    if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
+    return next(err);
+  }
+};
+
+exports.myBatches = async (req, res, next) => {
+  try {
+    const batches = await warehouseService.getWarehouseBatches({
+      warehouseId: req.user.userId
+    });
+    return res.json(batches);
+  } catch (err) {
+    return next(err);
+  }
 };
