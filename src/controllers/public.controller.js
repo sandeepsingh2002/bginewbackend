@@ -10,6 +10,8 @@ const Warehouse = require('../models/Warehouse');
 const WarehouseHistory = require('../models/WarehouseHistory');
 const Retailer = require('../models/Retailer');
 const RetailerHistory = require('../models/RetailerHistory');
+const { TransportSession } = require('../models/TransportSession');
+const { TransportLifecycleEvent } = require('../models/TransportLifecycleEvent');
 
 exports.getProduct = async (req, res) => {
   const product = await ProcessedProduct.findOne({ masterProductId: req.params.masterProductId }).lean();
@@ -89,6 +91,8 @@ exports.getTraceability = async (req, res) => {
   const leg2History = await DistributorHistory.findOne({ masterProductId, leg: 'leg2' }).lean();
   const warehouseHistory = await WarehouseHistory.findOne({ masterProductId }).lean();
   const retailerHistory = await RetailerHistory.findOne({ masterProductId }).lean();
+  const transportSessions = await TransportSession.find({ masterProductId }).sort({ createdAt: -1 }).lean();
+  const transportLifecycle = await TransportLifecycleEvent.find({ masterProductId }).sort({ createdAt: 1 }).lean();
 
   const leg1DistributorId = product.distributionLeg1?.distributorId || leg1History?.distributorId;
   const leg2DistributorId = product.distributionLeg2?.distributorId || leg2History?.distributorId;
@@ -135,6 +139,10 @@ exports.getTraceability = async (req, res) => {
       profile: warehouse,
       details: product.warehouseStop || null,
       history: warehouseHistory || null
+    },
+    transport: {
+      sessions: transportSessions,
+      lifecycle: transportLifecycle
     },
     retailer: {
       profile: retailer,

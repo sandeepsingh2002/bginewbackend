@@ -39,7 +39,7 @@ exports.addRawProduct = async (req, res) => {
   const { producerType, userId } = req.user;
   const producer = await Producer.findById(userId).select('geoLocation').lean();
   const requestGeo = req.body?.geoLocation || req.body?.farmLocation;
-  const rawProductId = await generateCustomIdFromGeo(requestGeo || producer?.geoLocation, 'MP00');
+  const rawProductId = await generateCustomIdFromGeo(requestGeo || producer?.geoLocation, 'MP09');
 
   const payload = {
     rawProductId,
@@ -54,7 +54,7 @@ exports.addRawProduct = async (req, res) => {
   else return res.status(400).json({ error: 'Unsupported producer type' });
 
   const product = await RawProduct.create(payload);
-  return res.status(201).json({ rawProductId: product.rawProductId, qrCodeUrl: product.qrCodeUrl });
+  return res.status(201).json({ qrCodeText: product.rawProductId });
 };
 
 exports.listOwnRawProducts = async (req, res) => {

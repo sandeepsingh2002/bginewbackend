@@ -199,108 +199,105 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/v1/admin/dashboard/users:
+  /api/v1/admin/analytics/monthly/users:
     get:
       tags: [Admin]
-      summary: List all users for admin dashboard sorted by region code
+      summary: Monthly new users analytics
+      description: Returns per-month counts of newly registered users. Supports overall and entity-wise breakdown.
       parameters:
+        - in: query
+          name: from
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Start date (inclusive), e.g. 2026-01-01
+        - in: query
+          name: to
+          required: false
+          schema:
+            type: string
+            format: date
+          description: End date (inclusive), e.g. 2026-12-31
         - in: query
           name: entityType
           required: false
           schema:
             type: string
-            enum: [producer, processor, distributor, warehouse, retailer]
+            enum: [all, producer, processor, distributor, warehouse, retailer]
+            default: all
+          description: Filter by one entity type or return combined totals.
       responses:
         '200':
-          description: Dashboard user list
+          description: Monthly user registration analytics
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  additionalProperties: true
-        '400':
-          description: Invalid entity type
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/MonthlyUsersAnalyticsResponse'
 
-  /api/v1/admin/dashboard/entities/{entityType}/{entityId}:
+  /api/v1/admin/analytics/monthly/products:
     get:
       tags: [Admin]
-      summary: Get complete dashboard details for one entity
-      parameters:
-        - in: path
-          name: entityType
-          required: true
-          schema:
-            type: string
-            enum: [producer, processor, distributor, warehouse, retailer]
-        - in: path
-          name: entityId
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Entity detail object for admin dashboard
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-        '400':
-          description: Invalid entity type
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Entity not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /api/v1/admin/dashboard/timeseries:
-    get:
-      tags: [Admin]
-      summary: Monthly admin dashboard analytics (users/products/reports)
+      summary: Monthly product analytics
+      description: Returns per-month product add/remove activity.
       parameters:
         - in: query
-          name: startDate
+          name: from
           required: false
           schema:
             type: string
             format: date
+          description: Start date (inclusive), e.g. 2026-01-01
         - in: query
-          name: endDate
+          name: to
           required: false
           schema:
             type: string
             format: date
+          description: End date (inclusive), e.g. 2026-12-31
         - in: query
-          name: sort
+          name: groupBy
           required: false
           schema:
             type: string
-            enum: [asc, desc]
+            enum: [month]
+            default: month
+          description: Time bucket; currently monthly only.
       responses:
         '200':
-          description: Time series analytics
+          description: Monthly product activity analytics
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
-        '400':
-          description: Invalid query parameters
+                $ref: '#/components/schemas/MonthlyProductsAnalyticsResponse'
+
+  /api/v1/admin/analytics/monthly/overview:
+    get:
+      tags: [Admin]
+      summary: Combined monthly overview analytics
+      description: Returns both monthly user and product analytics in one API response for dashboard use.
+      parameters:
+        - in: query
+          name: from
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Start date (inclusive), e.g. 2026-01-01
+        - in: query
+          name: to
+          required: false
+          schema:
+            type: string
+            format: date
+          description: End date (inclusive), e.g. 2026-12-31
+      responses:
+        '200':
+          description: Monthly dashboard overview
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/MonthlyOverviewAnalyticsResponse'
 
   /api/v1/producer/register:
     post:
@@ -391,30 +388,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/RawProduct'
-
-  /api/v1/producer/products/{rawProductId}:
-    get:
-      tags: [Producer]
-      summary: Get own raw product details by rawProductId
-      parameters:
-        - in: path
-          name: rawProductId
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Raw product details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RawProduct'
-        '404':
-          description: Raw product not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/processor/register:
     post:
@@ -605,6 +578,134 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenResponse'
+
+  /api/v1/distributor/start-session:
+    post:
+      tags: [Distributor]
+      summary: Start a transport session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartTransportSessionRequest'
+      responses:
+        '201':
+          description: Transport session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransportSession'
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Sender not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/distributor/update-tracking/{sessionId}:
+    post:
+      tags: [Distributor]
+      summary: Append a tracking point to an active transport session
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrackingUpdateRequest'
+      responses:
+        '200':
+          description: Tracking point accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackingUpdateResponse'
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Active transport session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/distributor/stop-session/{sessionId}:
+    post:
+      tags: [Distributor]
+      summary: Stop an active transport session
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Completed transport session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransportSession'
+        '404':
+          description: Active transport session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/distributor/session/{sessionId}:
+    get:
+      tags: [Distributor]
+      summary: Get a distributor transport session with lifecycle events
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransportSessionDetails'
+        '404':
+          description: Transport session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/distributor/my-sessions:
+    get:
+      tags: [Distributor]
+      summary: List distributor transport sessions
+      responses:
+        '200':
+          description: Transport sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TransportSession'
 
   /api/v1/distributor/scan:
     post:
@@ -1231,9 +1332,6 @@ components:
         producerType:
           type: string
           enum: [farmer, wood_collector, dairy_meat_producer]
-        geoLocation:
-          $ref: '#/components/schemas/LatLng'
-      description: geoLocation (lat/lng) is required when producerType is farmer.
     CompanyRegisterRequest:
       type: object
       required: [name, email, password, companyName]
@@ -1242,8 +1340,6 @@ components:
         email: { type: string, format: email }
         password: { type: string }
         companyName: { type: string }
-        geoLocation: { $ref: '#/components/schemas/LatLng' }
-      description: geoLocation (lat/lng) is required.
     WarehouseRegisterRequest:
       type: object
       required: [name, email, password, warehouseName, location]
@@ -1253,8 +1349,6 @@ components:
         password: { type: string }
         warehouseName: { type: string }
         location: { type: string }
-        geoLocation: { $ref: '#/components/schemas/LatLng' }
-      description: geoLocation (lat/lng) is required.
     RetailerRegisterRequest:
       type: object
       required: [name, email, password, storeName, storeLocation]
@@ -1264,8 +1358,6 @@ components:
         password: { type: string }
         storeName: { type: string }
         storeLocation: { type: string }
-        geoLocation: { $ref: '#/components/schemas/LatLng' }
-      description: geoLocation (lat/lng) is required.
     LatLng:
       type: object
       properties:
@@ -1311,7 +1403,6 @@ components:
         name: { type: string }
         email: { type: string }
         producerType: { type: string }
-        geoLocation: { $ref: '#/components/schemas/LatLng' }
         isVerified: { type: boolean }
         verifiedAt: { type: string, format: date-time, nullable: true }
         verifiedBy: { type: string, nullable: true }
@@ -1323,7 +1414,6 @@ components:
         name: { type: string }
         email: { type: string }
         companyName: { type: string }
-        geoLocation: { $ref: '#/components/schemas/LatLng' }
         isVerified: { type: boolean }
         verifiedAt: { type: string, format: date-time, nullable: true }
         verifiedBy: { type: string, nullable: true }
@@ -1335,7 +1425,6 @@ components:
         name: { type: string }
         email: { type: string }
         companyName: { type: string }
-        geoLocation: { $ref: '#/components/schemas/LatLng' }
         isVerified: { type: boolean }
         verifiedAt: { type: string, format: date-time, nullable: true }
         verifiedBy: { type: string, nullable: true }
@@ -1348,7 +1437,6 @@ components:
         email: { type: string }
         warehouseName: { type: string }
         location: { type: string }
-        geoLocation: { $ref: '#/components/schemas/LatLng' }
         isVerified: { type: boolean }
         verifiedAt: { type: string, format: date-time, nullable: true }
         verifiedBy: { type: string, nullable: true }
@@ -1361,7 +1449,6 @@ components:
         email: { type: string }
         storeName: { type: string }
         storeLocation: { type: string }
-        geoLocation: { $ref: '#/components/schemas/LatLng' }
         isVerified: { type: boolean }
         verifiedAt: { type: string, format: date-time, nullable: true }
         verifiedBy: { type: string, nullable: true }
@@ -1499,6 +1586,113 @@ components:
         receivedAt: { type: string, format: date-time }
         endTemp: { type: number }
         endHumidity: { type: number }
+    StartTransportSessionRequest:
+      type: object
+      required: [masterProductId, senderId, senderType, productName, productType, quantity, pickupLocation, dropLocation]
+      properties:
+        masterProductId: { type: string }
+        senderId: { type: string }
+        senderType:
+          type: string
+          enum: [producer, processor, warehouse]
+        productName: { type: string }
+        productType:
+          type: string
+          enum: [short_shelf_life, medium_shelf_life, long_shelf_life, frozen, fragile]
+        quantity: { type: number }
+        pickupLocation:
+          $ref: '#/components/schemas/LatLng'
+        dropLocation:
+          $ref: '#/components/schemas/LatLng'
+    TrackingUpdateRequest:
+      type: object
+      required: [lat, lng]
+      properties:
+        lat: { type: number }
+        lng: { type: number }
+        truckTemperature: { type: number }
+        humidity: { type: number }
+    TrackingPoint:
+      type: object
+      properties:
+        timestamp: { type: string, format: date-time }
+        location:
+          type: object
+          properties:
+            lat: { type: number }
+            lng: { type: number }
+        truckTemperature: { type: number, nullable: true }
+        humidity: { type: number, nullable: true }
+    TrackingUpdateResponse:
+      type: object
+      properties:
+        sessionId: { type: string }
+        status:
+          type: string
+          enum: [active, completed]
+        trackingPoint:
+          $ref: '#/components/schemas/TrackingPoint'
+    TransportSession:
+      type: object
+      properties:
+        _id: { type: string }
+        sessionId: { type: string }
+        distributorId: { type: string }
+        senderId: { type: string }
+        senderType:
+          type: string
+          enum: [producer, processor, warehouse]
+        masterProductId: { type: string }
+        productName: { type: string }
+        productType:
+          type: string
+          enum: [short_shelf_life, medium_shelf_life, long_shelf_life, frozen, fragile]
+        quantity: { type: number }
+        pickupLocation:
+          $ref: '#/components/schemas/LatLng'
+        dropLocation:
+          $ref: '#/components/schemas/LatLng'
+        startedAt: { type: string, format: date-time }
+        endedAt: { type: string, format: date-time, nullable: true }
+        status:
+          type: string
+          enum: [active, completed]
+        trackingPoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrackingPoint'
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TransportLifecycleEvent:
+      type: object
+      properties:
+        _id: { type: string }
+        sessionId: { type: string }
+        masterProductId: { type: string }
+        distributorId: { type: string }
+        eventType:
+          type: string
+          enum: [TRANSPORT_STARTED, TRANSPORT_UPDATE, TRANSPORT_COMPLETED]
+        status:
+          type: string
+          enum: [active, completed]
+        senderId: { type: string }
+        senderType:
+          type: string
+          enum: [producer, processor, warehouse]
+        payload:
+          type: object
+          additionalProperties: true
+        createdAt: { type: string, format: date-time }
+    TransportSessionDetails:
+      type: object
+      properties:
+        session:
+          $ref: '#/components/schemas/TransportSession'
+        lifecycleEvents:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransportLifecycleEvent'
     WarehouseReceiveRequest:
       type: object
       required: [masterProductId]
@@ -1602,3 +1796,126 @@ components:
         conclusion: { type: string, nullable: true }
         phaseUpdatedAt: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
+
+    MonthlyUsersPoint:
+      type: object
+      required: [month, total]
+      properties:
+        month:
+          type: string
+          example: "2026-05"
+        total:
+          type: integer
+          minimum: 0
+        producer:
+          type: integer
+          minimum: 0
+        processor:
+          type: integer
+          minimum: 0
+        distributor:
+          type: integer
+          minimum: 0
+        warehouse:
+          type: integer
+          minimum: 0
+        retailer:
+          type: integer
+          minimum: 0
+
+    MonthlyUsersAnalyticsResponse:
+      type: object
+      required: [range, points]
+      properties:
+        range:
+          $ref: '#/components/schemas/AnalyticsRange'
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthlyUsersPoint'
+        totals:
+          type: object
+          properties:
+            total:
+              type: integer
+              minimum: 0
+            producer:
+              type: integer
+              minimum: 0
+            processor:
+              type: integer
+              minimum: 0
+            distributor:
+              type: integer
+              minimum: 0
+            warehouse:
+              type: integer
+              minimum: 0
+            retailer:
+              type: integer
+              minimum: 0
+
+    MonthlyProductsPoint:
+      type: object
+      required: [month, added, removed, net]
+      properties:
+        month:
+          type: string
+          example: "2026-05"
+        added:
+          type: integer
+          minimum: 0
+        removed:
+          type: integer
+          minimum: 0
+        net:
+          type: integer
+          description: added - removed for the month
+        activeEndOfMonth:
+          type: integer
+          minimum: 0
+          description: Total active products at end of the month.
+
+    MonthlyProductsAnalyticsResponse:
+      type: object
+      required: [range, points]
+      properties:
+        range:
+          $ref: '#/components/schemas/AnalyticsRange'
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthlyProductsPoint'
+        totals:
+          type: object
+          properties:
+            added:
+              type: integer
+              minimum: 0
+            removed:
+              type: integer
+              minimum: 0
+            net:
+              type: integer
+
+    MonthlyOverviewAnalyticsResponse:
+      type: object
+      required: [users, products]
+      properties:
+        users:
+          $ref: '#/components/schemas/MonthlyUsersAnalyticsResponse'
+        products:
+          $ref: '#/components/schemas/MonthlyProductsAnalyticsResponse'
+
+    AnalyticsRange:
+      type: object
+      required: [from, to]
+      properties:
+        from:
+          type: string
+          format: date
+          example: "2026-01-01"
+        to:
+          type: string
+          format: date
+          example: "2026-12-31"

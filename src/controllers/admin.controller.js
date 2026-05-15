@@ -13,6 +13,8 @@ const DistributorHistory = require('../models/DistributorHistory');
 const WarehouseHistory = require('../models/WarehouseHistory');
 const RetailerHistory = require('../models/RetailerHistory');
 const Report = require('../models/Report');
+const { TransportSession } = require('../models/TransportSession');
+const { TransportLifecycleEvent } = require('../models/TransportLifecycleEvent');
 const { getCityFromReverseGeocode } = require('../utils/reverseGeocode');
 const { getMPRTOCode } = require('../utils/mpRtoCode');
 const { signToken } = require('../utils/auth');
@@ -220,11 +222,13 @@ exports.dashboardEntityDetails = async (req, res) => {
 
   if (entityType === 'distributor') {
     const history = await DistributorHistory.find({ distributorId: entityId }).sort({ createdAt: -1 }).lean();
+    const transportSessions = await TransportSession.find({ distributorId: entityId }).sort({ createdAt: -1 }).lean();
+    const lifecycleEvents = await TransportLifecycleEvent.find({ distributorId: entityId }).sort({ createdAt: -1 }).lean();
     const products = await ProcessedProduct.find({
       $or: [{ 'distributionLeg1.distributorId': entityId }, { 'distributionLeg2.distributorId': entityId }]
     }).sort({ createdAt: -1 }).lean();
     const reports = await Report.find({ masterProductId: { $in: products.map((p) => p.masterProductId) } }).sort({ createdAt: -1 }).lean();
-    return res.json({ profile, history, products, reports });
+    return res.json({ profile, history, transportSessions, lifecycleEvents, products, reports });
   }
 
   if (entityType === 'warehouse') {

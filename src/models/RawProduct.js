@@ -1,13 +1,16 @@
 ﻿const mongoose = require('mongoose');
 
 const geoSchema = new mongoose.Schema({ lat: Number, lng: Number }, { _id: false });
+const FARM_CROP_ENUM = ['wheat', 'rice', 'maize', 'soybean', 'cotton', 'pulses', 'vegetables', 'fruits', 'sugarcane'];
+const WOOD_TYPE_ENUM = ['teak', 'sal', 'eucalyptus', 'bamboo', 'pine', 'sandalwood'];
+const DAIRY_MEAT_PRODUCT_ENUM = ['milk', 'curd', 'paneer', 'cheese', 'butter', 'ghee', 'chicken', 'goat_meat', 'eggs'];
 
 const rawProductSchema = new mongoose.Schema({
   rawProductId: { type: String, unique: true, required: true },
   producerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Producer', required: true },
   producerType: { type: String, required: true },
   farmFields: {
-    cropName: String,
+    cropName: { type: String, enum: FARM_CROP_ENUM },
     quantity: Number,
     quantityUnit: String,
     geoLocation: geoSchema,
@@ -18,7 +21,7 @@ const rawProductSchema = new mongoose.Schema({
     organicCertified: Boolean
   },
   woodFields: {
-    woodType: String,
+    woodType: { type: String, enum: WOOD_TYPE_ENUM },
     quantity: Number,
     quantityUnit: String,
     forestRegion: String,
@@ -27,7 +30,7 @@ const rawProductSchema = new mongoose.Schema({
     sustainabilityCertified: Boolean
   },
   dairyMeatFields: {
-    productType: String,
+    productType: { type: String, enum: DAIRY_MEAT_PRODUCT_ENUM },
     animalBreed: String,
     quantity: Number,
     quantityUnit: String,
@@ -40,4 +43,9 @@ const rawProductSchema = new mongoose.Schema({
   status: { type: String, enum: ['available', 'in_batch'], default: 'available' }
 }, { timestamps: { createdAt: true, updatedAt: false } });
 
-module.exports = mongoose.model('RawProduct', rawProductSchema);
+const RawProduct = mongoose.model('RawProduct', rawProductSchema);
+
+module.exports = RawProduct;
+module.exports.FARM_CROP_ENUM = FARM_CROP_ENUM;
+module.exports.WOOD_TYPE_ENUM = WOOD_TYPE_ENUM;
+module.exports.DAIRY_MEAT_PRODUCT_ENUM = DAIRY_MEAT_PRODUCT_ENUM;
