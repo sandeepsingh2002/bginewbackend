@@ -264,6 +264,44 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /api/v1/admin/dashboard/timeseries:
+    get:
+      tags: [Admin]
+      summary: Monthly admin dashboard analytics (users/products/reports)
+      parameters:
+        - in: query
+          name: startDate
+          required: false
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          required: false
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: sort
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+      responses:
+        '200':
+          description: Time series analytics
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/v1/producer/register:
     post:
       tags: [Producer]

@@ -51,6 +51,40 @@ const enrichRegion = async (row) => {
   }
 };
 
+const parseDateOrNull = (value) => {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const monthKey = (date) => {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+};
+
+const aggregateMonthly = async (Model, match = {}) => {
+  const rows = await Model.aggregate([
+    { $match: match },
+    {
+      $group: {
+        _id: {
+          year: { $year: '$createdAt' },
+          month: { $month: '$createdAt' }
+        },
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  const map = new Map();
+  for (const r of rows) {
+    const key = `${r._id.year}-${String(r._id.month).padStart(2, '0')}`;
+    map.set(key, r.count);
+  }
+  return map;
+};
+
 exports.login = async (req, res) => {
   const { email, password } = req.body;
   const admin = await Admin.findOne({ email });
@@ -204,4 +238,95 @@ exports.dashboardEntityDetails = async (req, res) => {
   const products = await ProcessedProduct.find({ 'retailerStop.retailerId': entityId }).sort({ createdAt: -1 }).lean();
   const reports = await Report.find({ masterProductId: { $in: products.map((p) => p.masterProductId) } }).sort({ createdAt: -1 }).lean();
   return res.json({ profile, history, products, reports });
+};
+
+exports.dashboardTimeseries = async (req, res) => {
+  const startDate = parseDateOrNull(req.query.startDate);
+  const endDate = parseDateOrNull(req.query.endDate);
+  const sort = String(req.query.sort || 'asc').toLowerCase() === 'desc' ? 'desc' : 'asc';
+
+  if ((req.query.startDate && !startDate) || (req.query.endDate && !endDate)) {
+    return res.status(400).json({ error: 'Invalid date format. Use ISO date (YYYY-MM-DD).' });
+  }
+  if (startDate && endDate && startDate > endDate) {
+    return res.status(400).json({ error: 'startDate must be less than or equal to endDate.' });
+  }
+
+  const match = {};
+  if (startDate || endDate) {
+    match.createdAt = {};
+    if (startDate) match.createdAt.$gte = startDate;
+    if (endDate) {
+      const inclusiveEnd = new Date(endDate);
+      inclusiveEnd.setUTCHours(23, 59, 59, 999);
+      match.createdAt.$lte = inclusiveEnd;
+    }
+  }
+
+  const [
+    producersByMonth,
+    processorsByMonth,
+    distributorsByMonth,
+    warehousesByMonth,
+    retailersByMonth,
+    rawAddedByMonth,
+    processedAddedByMonth,
+    reportsByMonth
+  ] = await Promise.all([
+    aggregateMonthly(Producer, match),
+    aggregateMonthly(Processor, match),
+    aggregateMonthly(Distributor, match),
+    aggregateMonthly(Warehouse, match),
+    aggregateMonthly(Retailer, match),
+    aggregateMonthly(RawProduct, match),
+    aggregateMonthly(ProcessedProduct, match),
+    aggregateMonthly(Report, match)
+  ]);
+
+  const allMonths = new Set([
+    ...producersByMonth.keys(),
+    ...processorsByMonth.keys(),
+    ...distributorsByMonth.keys(),
+    ...warehousesByMonth.keys(),
+    ...retailersByMonth.keys(),
+    ...rawAddedByMonth.keys(),
+    ...processedAddedByMonth.keys(),
+    ...reportsByMonth.keys()
+  ]);
+
+  const months = [...allMonths].sort((a, b) => (sort === 'asc' ? a.localeCompare(b) : b.localeCompare(a)));
+
+  const series = months.map((month) => {
+    const usersNew =
+      (producersByMonth.get(month) || 0) +
+      (processorsByMonth.get(month) || 0) +
+      (distributorsByMonth.get(month) || 0) +
+      (warehousesByMonth.get(month) || 0) +
+      (retailersByMonth.get(month) || 0);
+
+    return {
+      month,
+      usersNew,
+      usersNewByEntity: {
+        producer: producersByMonth.get(month) || 0,
+        processor: processorsByMonth.get(month) || 0,
+        distributor: distributorsByMonth.get(month) || 0,
+        warehouse: warehousesByMonth.get(month) || 0,
+        retailer: retailersByMonth.get(month) || 0
+      },
+      rawProductsAdded: rawAddedByMonth.get(month) || 0,
+      processedProductsAdded: processedAddedByMonth.get(month) || 0,
+      productsRemoved: 0,
+      reportsCreated: reportsByMonth.get(month) || 0
+    };
+  });
+
+  return res.json({
+    range: {
+      startDate: startDate ? startDate.toISOString() : null,
+      endDate: endDate ? endDate.toISOString() : null
+    },
+    sort,
+    series
+  });
 };
