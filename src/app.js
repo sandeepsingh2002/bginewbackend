@@ -18,6 +18,7 @@ app.use('/api/v1/warehouse', require('./routes/warehouse.routes'));
 app.use('/api/v1/retailer', require('./routes/retailer.routes'));
 app.use('/api/v1/public', require('./routes/public.routes'));
 app.use('/api/v1/reports', require('./routes/report.routes'));
+app.use('/api/v1/marketplace', require('./routes/marketplace.routes'));
 
 app.use((err, _req, res, _next) => {
   console.error(err);

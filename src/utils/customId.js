@@ -6,9 +6,11 @@ const generateCustomIdFromGeo = async (geoLocation, fallbackCode = 'MP00') => {
   try {
     const city = await getCityFromReverseGeocode(geoLocation?.lat, geoLocation?.lng);
     const code = getMPRTOCode(city) || fallbackCode;
-    return `${code}-${nanoid(10)}`;
+    const randomPart = nanoid(10);
+    return `${code}-${randomPart}`;
   } catch (_err) {
-    return `${fallbackCode}-${nanoid(10)}`;
+    const randomPart = nanoid(10);
+    return `${fallbackCode}-${randomPart}`;
   }
 };
 
